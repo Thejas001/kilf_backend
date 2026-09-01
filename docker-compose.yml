@@ -1,0 +1,62 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kilf
+      POSTGRES_PASSWORD: kilf
+      POSTGRES_DB: kilf
+    ports:
+      - '5432:5432'
+    volumes:
+      - kilf_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kilf']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://kilf:kilf@postgres:5432/kilf?schema=public
+      JWT_SECRET: change-this-to-a-long-random-string-in-production
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: change-this-to-a-different-long-random-string
+      JWT_REFRESH_EXPIRES_IN: 7d
+      FRONTEND_URL: http://localhost:5173
+      PAYMENT_PROVIDER: mock
+      PAYMENT_SECRET: dev-mock-payment-secret
+    ports:
+      - '4000:4000'
+    volumes:
+      - kilf_uploads:/app/uploads
+    command: sh -c "npx prisma migrate deploy && node dist/server.js"
+
+  # Optional: admin panel served by Vite preview. Comment out if you prefer
+  # to run `npm run dev` locally against the backend container above.
+  admin-panel:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:4000
+    ports:
+      - '5173:5173'
+
+volumes:
+  kilf_pgdata:
+  kilf_uploads:

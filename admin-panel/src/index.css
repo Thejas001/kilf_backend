@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 36 33% 97%;
+    --foreground: 346 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 346 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 346 30% 12%;
+
+    --primary: 346 60% 27%;
+    --primary-foreground: 36 40% 97%;
+
+    --secondary: 36 25% 92%;
+    --secondary-foreground: 346 30% 15%;
+
+    --muted: 36 20% 93%;
+    --muted-foreground: 346 10% 42%;
+
+    --accent: 40 70% 55%;
+    --accent-foreground: 346 30% 12%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 152 55% 30%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 35 90% 45%;
+    --warning-foreground: 0 0% 98%;
+
+    --border: 346 15% 87%;
+    --input: 346 15% 85%;
+    --ring: 346 60% 27%;
+
+    --radius: 0.6rem;
+  }
+
+  .dark {
+    --background: 346 25% 8%;
+    --foreground: 36 30% 95%;
+
+    --card: 346 22% 11%;
+    --card-foreground: 36 30% 95%;
+
+    --popover: 346 22% 11%;
+    --popover-foreground: 36 30% 95%;
+
+    --primary: 40 70% 60%;
+    --primary-foreground: 346 30% 10%;
+
+    --secondary: 346 18% 16%;
+    --secondary-foreground: 36 30% 92%;
+
+    --muted: 346 18% 16%;
+    --muted-foreground: 36 15% 65%;
+
+    --accent: 40 70% 55%;
+    --accent-foreground: 346 30% 10%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 152 45% 40%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 35 90% 55%;
+    --warning-foreground: 346 30% 10%;
+
+    --border: 346 15% 20%;
+    --input: 346 15% 22%;
+    --ring: 40 70% 60%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-serif;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+}
