@@ -25,6 +25,90 @@ async function revenueSince(date: Date): Promise<number> {
   return round2(toNumber(grossRevenue));
 }
 
+/** Per-ticket slot, booking, revenue and check-in breakdown. */
+async function getTicketBreakdown() {
+  const [tickets, items, checkedIn, issued] = await Promise.all([
+    prisma.ticket.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { festival: { select: { id: true, name: true } } },
+    }),
+    prisma.bookingItem.findMany({
+      select: { ticketId: true, quantity: true, subtotal: true, booking: { select: { status: true } } },
+    }),
+    prisma.ticketInstance.groupBy({ by: ['ticketId'], where: { status: 'USED' }, _count: { _all: true } }),
+    prisma.ticketInstance.groupBy({
+      by: ['ticketId'],
+      where: { status: { not: 'CANCELLED' }, booking: { status: 'CONFIRMED' } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const checkedInById = new Map(checkedIn.map((c) => [c.ticketId, c._count._all]));
+  const issuedById = new Map(issued.map((c) => [c.ticketId, c._count._all]));
+
+  return tickets.map((t) => {
+    const mine = items.filter((i) => i.ticketId === t.id);
+    const withStatus = (...statuses: string[]) => mine.filter((i) => statuses.includes(i.booking.status));
+    const qty = (rows: typeof mine) => rows.reduce((acc, i) => acc + i.quantity, 0);
+
+    const confirmed = withStatus('CONFIRMED');
+    const pending = withStatus('PENDING_PAYMENT');
+    const issuedCount = issuedById.get(t.id) ?? 0;
+    const checkedInCount = checkedInById.get(t.id) ?? 0;
+    const remaining = Math.min(Math.max(t.availableQuantity, 0), t.totalQuantity);
+    const held = t.totalQuantity - remaining;
+
+    return {
+      id: t.id,
+      name: t.name,
+      ticketType: t.ticketType,
+      festival: t.festival,
+      price: toNumber(t.price),
+      currency: t.currency,
+      status: t.status,
+      totalQuantity: t.totalQuantity,
+      remaining,
+      confirmedQuantity: qty(confirmed),
+      pendingQuantity: qty(pending),
+      utilizationPercentage: t.totalQuantity > 0 ? round2((held / t.totalQuantity) * 100) : 0,
+      bookings: {
+        total: mine.length,
+        confirmed: confirmed.length,
+        pending: pending.length,
+        cancelled: withStatus('CANCELLED', 'EXPIRED').length,
+        refunded: withStatus('REFUNDED').length,
+      },
+      revenue: round2(confirmed.reduce((acc, i) => acc + toNumber(i.subtotal), 0)),
+      checkIn: {
+        issued: issuedCount,
+        checkedIn: checkedInCount,
+        notArrived: issuedCount - checkedInCount,
+      },
+    };
+  });
+}
+
+async function getCheckInSummary() {
+  const [checkedIn, issued, recent] = await Promise.all([
+    prisma.ticketInstance.count({ where: { status: 'USED' } }),
+    prisma.ticketInstance.count({ where: { status: { not: 'CANCELLED' }, booking: { status: 'CONFIRMED' } } }),
+    prisma.ticketInstance.findMany({
+      where: { status: 'USED' },
+      orderBy: { checkedInAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        ticketNumber: true,
+        checkedInAt: true,
+        ticket: { select: { name: true } },
+        booking: { select: { bookingNumber: true, customer: { select: { name: true } } } },
+        checkedInBy: { select: { name: true } },
+      },
+    }),
+  ]);
+  return { issued, checkedIn, notArrived: issued - checkedIn, recent };
+}
+
 export async function getDashboardStats() {
   const [
     ticketAgg,
@@ -38,6 +122,8 @@ export async function getDashboardStats() {
     dailyRevenue,
     monthlyRevenue,
     revenueByTicket,
+    ticketBreakdown,
+    checkInSummary,
   ] = await Promise.all([
     prisma.ticket.aggregate({ _sum: { totalQuantity: true, availableQuantity: true } }),
     prisma.booking.groupBy({ by: ['status'], _count: { _all: true } }),
@@ -50,6 +136,8 @@ export async function getDashboardStats() {
     revenueRepository.getDailyRevenue(14),
     revenueRepository.getMonthlyRevenue(12),
     revenueRepository.getRevenueByTicketType(),
+    getTicketBreakdown(),
+    getCheckInSummary(),
   ]);
 
   const totalTickets = ticketAgg._sum.totalQuantity ?? 0;
@@ -97,6 +185,8 @@ export async function getDashboardStats() {
       total: totalSponsors,
       active: sponsorsByStatus.ACTIVE ?? 0,
     },
+    ticketBreakdown,
+    checkIn: checkInSummary,
     charts: {
       revenueByDay: dailyRevenue.map((r) => ({
         date: r.day,

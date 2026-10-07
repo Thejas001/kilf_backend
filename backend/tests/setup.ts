@@ -10,8 +10,10 @@ async function truncateAll() {
     'customers',
     'tickets',
     'sponsors',
+    'early_bird_registrations',
     'festivals',
     'admins',
+    'guests',
   ];
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables.map((t) => `"${t}"`).join(', ')} CASCADE;`);
 }

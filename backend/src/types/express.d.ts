@@ -8,6 +8,10 @@ declare global {
         email: string;
         role: AdminRole;
       };
+      guest?: {
+        id: string;
+        email: string;
+      };
       /** Raw request body bytes, captured by the express.json() verify hook for webhook signature checks. */
       rawBody?: Buffer;
     }

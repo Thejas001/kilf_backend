@@ -24,3 +24,11 @@ export const bookingLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many booking requests, please slow down.', errors: [] },
 });
+
+export const earlyBirdLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isTest ? 100000 : 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many registration attempts, please try again later.', errors: [] },
+});

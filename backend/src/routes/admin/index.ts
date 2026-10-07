@@ -8,6 +8,7 @@ import bookingRoutes from './booking.routes';
 import sponsorRoutes from './sponsor.routes';
 import revenueRoutes from './revenue.routes';
 import auditLogRoutes from './auditLog.routes';
+import earlyBirdRoutes from './earlyBird.routes';
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use('/bookings', bookingRoutes);
 router.use('/sponsors', sponsorRoutes);
 router.use('/revenue', revenueRoutes);
 router.use('/audit-logs', auditLogRoutes);
+router.use('/early-bird', earlyBirdRoutes);
 
 export default router;

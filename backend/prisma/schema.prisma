@@ -103,6 +103,22 @@ model Admin {
   @@map("admins")
 }
 
+model Guest {
+  id                    String    @id @default(uuid())
+  name                  String
+  email                 String    @unique
+  passwordHash          String    @map("password_hash")
+  isActive              Boolean   @default(true) @map("is_active")
+  lastLoginAt           DateTime? @map("last_login_at")
+  passwordResetToken    String?   @map("password_reset_token")
+  passwordResetExpires  DateTime? @map("password_reset_expires")
+  refreshTokenHash      String?   @map("refresh_token_hash")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("guests")
+}
+
 model Festival {
   id                 String         @id @default(uuid())
   name               String
@@ -298,4 +314,28 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+enum EarlyBirdType {
+  REGISTER
+  VOLUNTEER
+  EXHIBIT
+  PARTNER
+}
+
+model EarlyBirdRegistration {
+  id              String   @id @default(uuid())
+  name            String
+  whatsappNumber  String   @unique @map("whatsapp_number")
+  email           String?
+  townOrCity      String   @map("town_or_city")
+  ageGroup        String   @map("age_group")
+  interests       String[]
+  interestType    EarlyBirdType @default(REGISTER) @map("interest_type")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([createdAt])
+  @@index([interestType])
+  @@map("early_bird_registrations")
 }
