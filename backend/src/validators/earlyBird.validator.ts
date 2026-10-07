@@ -10,6 +10,10 @@ export const INTERESTS = [
   'OPEN_MIC_POETRY',
   'NEW_YEARS_EVE',
   'WORKSHOPS',
+  'YOUTH',
+  'THEATRE',
+  'MUSIC',
+  'FILM',
 ] as const;
 
 export const INTEREST_TYPES = ['REGISTER', 'VOLUNTEER', 'EXHIBIT', 'PARTNER'] as const;

@@ -28,7 +28,7 @@ const router = Router();
  *               interestType: { type: string, enum: [REGISTER, VOLUNTEER, EXHIBIT, PARTNER], default: REGISTER }
  *               interests:
  *                 type: array
- *                 items: { type: string, enum: [AUTHOR_TALKS, KHASAKKINTE_ITHIHASAM, MUSIC_EVENINGS, BOOK_FAIR, OPEN_MIC_POETRY, NEW_YEARS_EVE, WORKSHOPS] }
+ *                 items: { type: string, enum: [AUTHOR_TALKS, KHASAKKINTE_ITHIHASAM, MUSIC_EVENINGS, BOOK_FAIR, OPEN_MIC_POETRY, NEW_YEARS_EVE, WORKSHOPS, YOUTH, THEATRE, MUSIC, FILM] }
  *     responses:
  *       201: { description: Registered }
  *       400: { description: Validation failed }
