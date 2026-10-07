@@ -18,6 +18,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
+  // Public base URL of this API (e.g. https://api.kilf.in). Used for the Swagger
+  // server entry; falls back to http://localhost:PORT when unset.
+  API_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 

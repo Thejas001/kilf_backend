@@ -1,6 +1,15 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import { env } from './env';
 
+const localServer = { url: `http://localhost:${env.PORT}`, description: 'Local development' };
+const apiUrl = env.API_URL?.replace(/\/+$/, '');
+// The configured API_URL is listed first so Swagger UI selects it by default;
+// localhost stays available as a secondary choice.
+const servers =
+  apiUrl && apiUrl !== localServer.url
+    ? [{ url: apiUrl, description: 'API server' }, localServer]
+    : [localServer];
+
 const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.3',
@@ -11,7 +20,7 @@ const options: swaggerJsdoc.Options = {
         'REST API for the Literature Festival Admin Panel and public festival website: ' +
         'authentication, festival & ticket management, bookings, payments, check-in, sponsors and revenue.',
     },
-    servers: [{ url: `http://localhost:${env.PORT}`, description: 'Local development' }],
+    servers,
     components: {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
