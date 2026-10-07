@@ -6,6 +6,7 @@ import {
   ClipboardList,
   ScanLine,
   Handshake,
+  Sparkles,
   LineChart,
   Settings,
   LogOut,
@@ -30,10 +31,6 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   { items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, end: true }] },
   {
-    label: 'Festival',
-    items: [{ label: 'Festival Details', to: '/festivals', icon: BookOpen }],
-  },
-  {
     label: 'Tickets',
     items: [
       { label: 'All Tickets', to: '/tickets', icon: Ticket, end: true },
@@ -48,6 +45,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   { items: [{ label: 'Sponsors', to: '/sponsors', icon: Handshake }] },
+  { items: [{ label: 'Early Bird', to: '/early-bird', icon: Sparkles }] },
   { items: [{ label: 'Revenue', to: '/revenue', icon: LineChart }] },
   { items: [{ label: 'Settings', to: '/admin/settings', icon: Settings }] },
 ];
@@ -62,8 +60,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <BookOpen className="h-4.5 w-4.5" />
         </div>
         <div>
-          <p className="font-serif text-sm font-semibold leading-tight">Kilf Admin</p>
-          <p className="text-[11px] text-muted-foreground">Festival Management</p>
+          <p className="font-serif text-base font-extrabold leading-tight text-primary">
+            kilf <span className="text-xs font-semibold text-foreground">2027</span>
+          </p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Kollam Intl. Literature Festival</p>
         </div>
         <button
           className="ml-auto rounded-md p-1 text-muted-foreground hover:bg-secondary lg:hidden"

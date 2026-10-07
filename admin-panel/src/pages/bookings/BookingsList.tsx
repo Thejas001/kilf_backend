@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, ClipboardList, Eye, Ban } from 'lucide-react';
@@ -14,6 +14,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { PaginationBar } from '@/components/common/PaginationBar';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { listTickets } from '@/services/ticket.service';
 import { cancelBooking, exportBookingsCsv, listBookings } from '@/services/booking.service';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { BookingStatus } from '@/types';
@@ -26,6 +27,14 @@ export default function BookingsListPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<BookingStatus | 'ALL'>('ALL');
   const [exporting, setExporting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ticketId = searchParams.get('ticketId') ?? 'ALL';
+
+  const { data: ticketOptions } = useQuery({
+    queryKey: ['tickets', 'options'],
+    queryFn: () => listTickets({ page: 1, limit: 100 }),
+  });
+  const selectedTicket = ticketOptions?.data.find((t) => t.id === ticketId);
   const queryClient = useQueryClient();
 
   const params = {
@@ -33,10 +42,11 @@ export default function BookingsListPage() {
     limit: 15,
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
+    ticketId: ticketId === 'ALL' ? undefined : ticketId,
   };
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['bookings', page, search, status],
+    queryKey: ['bookings', page, search, status, ticketId],
     queryFn: () => listBookings(params),
   });
 
@@ -83,6 +93,25 @@ export default function BookingsListPage() {
           className="sm:max-w-sm"
         />
         <Select
+          value={ticketId}
+          onValueChange={(v) => {
+            setSearchParams(v === 'ALL' ? {} : { ticketId: v });
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="sm:w-60">
+            <SelectValue placeholder="All tickets" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All tickets</SelectItem>
+            {ticketOptions?.data.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={status}
           onValueChange={(v) => {
             setStatus(v as BookingStatus | 'ALL');
@@ -102,6 +131,12 @@ export default function BookingsListPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {selectedTicket && (
+        <p className="mb-3 text-sm text-muted-foreground">
+          {selectedTicket.name}: {selectedTicket.availableQuantity} of {selectedTicket.totalQuantity} slots remaining
+        </p>
+      )}
 
       {isLoading && <Skeleton className="h-96" />}
       {isError && <ErrorState onRetry={() => refetch()} />}

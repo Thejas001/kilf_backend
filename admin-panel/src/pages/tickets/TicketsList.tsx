@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Ticket as TicketIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, ClipboardList, Ticket as TicketIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,6 +127,7 @@ export default function TicketsListPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Inventory</TableHead>
+                <TableHead>Remaining</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -141,6 +142,9 @@ export default function TicketsListPage() {
                   <TableCell className="text-muted-foreground">
                     {ticket.totalQuantity - ticket.availableQuantity} / {ticket.totalQuantity} sold
                   </TableCell>
+                  <TableCell className={ticket.availableQuantity === 0 ? 'font-medium text-destructive' : 'font-medium'}>
+                    {ticket.availableQuantity === 0 ? 'Sold out' : ticket.availableQuantity}
+                  </TableCell>
                   <TableCell>
                     <Switch
                       checked={ticket.status === 'ACTIVE'}
@@ -151,6 +155,11 @@ export default function TicketsListPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" asChild title="View bookings">
+                        <Link to={`/bookings?ticketId=${ticket.id}`}>
+                          <ClipboardList className="h-4 w-4" />
+                        </Link>
+                      </Button>
                       <Button variant="ghost" size="icon" asChild>
                         <Link to={`/tickets/${ticket.id}/edit`}>
                           <Pencil className="h-4 w-4" />

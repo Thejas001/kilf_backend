@@ -1,5 +1,5 @@
 import { FormEvent, ReactNode, useRef, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, ScanLine, XCircle } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -10,12 +10,18 @@ import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { checkInTicket, VerifyResult, verifyTicket } from '@/services/checkin.service';
 import { getApiErrorMessage } from '@/services/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatNumber } from '@/lib/utils';
+import { getDashboardStats } from '@/services/revenue.service';
+import { StatCard } from '@/components/common/StatCard';
+import { Ticket, Clock } from 'lucide-react';
 
 export default function CheckInPage() {
   const [ticketNumber, setTicketNumber] = useState('');
   const [result, setResult] = useState<VerifyResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const stats = useQuery({ queryKey: ['dashboard-stats'], queryFn: getDashboardStats, refetchInterval: 15000 });
+  const refreshStats = () => queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
 
   const verifyMutation = useMutation({
     mutationFn: verifyTicket,
@@ -30,6 +36,7 @@ export default function CheckInPage() {
     mutationFn: checkInTicket,
     onSuccess: async () => {
       toast.success('Attendee checked in');
+      refreshStats();
       if (ticketNumber) {
         const refreshed = await verifyTicket(ticketNumber);
         setResult(refreshed);
@@ -51,8 +58,16 @@ export default function CheckInPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title="Check-in" description="Scan or enter a ticket number to verify and check in attendees" />
+
+      {stats.data && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Tickets Issued" value={formatNumber(stats.data.checkIn.issued)} icon={Ticket} />
+          <StatCard label="Checked In" value={formatNumber(stats.data.checkIn.checkedIn)} icon={CheckCircle2} tone="success" />
+          <StatCard label="Yet to Arrive" value={formatNumber(stats.data.checkIn.notArrived)} icon={Clock} tone="warning" />
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-6">
@@ -110,6 +125,53 @@ export default function CheckInPage() {
               <Button variant="outline" onClick={reset}>
                 Scan another
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.data && stats.data.ticketBreakdown.some((t) => t.checkIn.issued > 0) && (
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <p className="font-serif text-lg font-semibold">Check-in by ticket</p>
+            {stats.data.ticketBreakdown
+              .filter((t) => t.checkIn.issued > 0)
+              .map((t) => (
+                <div key={t.id}>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{t.name}</span>
+                    <span className="text-muted-foreground">
+                      {t.checkIn.checkedIn} / {t.checkIn.issued} checked in
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full bg-success" style={{ width: `${(t.checkIn.checkedIn / t.checkIn.issued) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.data && stats.data.checkIn.recent.length > 0 && (
+        <Card>
+          <CardContent className="p-6">
+            <p className="mb-3 font-serif text-lg font-semibold">Recent check-ins</p>
+            <div className="space-y-2">
+              {stats.data.checkIn.recent.map((r) => (
+                <div key={r.id} className="flex items-center justify-between border-b border-border pb-2 text-sm last:border-0">
+                  <div>
+                    <p className="font-medium">{r.booking.customer.name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {r.ticketNumber} • {r.ticket.name}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {r.checkedInAt ? formatDate(r.checkedInAt, true) : ''}
+                    {r.checkedInBy ? ` • ${r.checkedInBy.name}` : ''}
+                  </p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

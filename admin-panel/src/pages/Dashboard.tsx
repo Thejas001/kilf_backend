@@ -14,7 +14,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Ticket, ClipboardCheck, Wallet, Handshake, TrendingUp, Clock } from 'lucide-react';
+import { Ticket, ClipboardCheck, Wallet, Handshake, TrendingUp, Clock, ScanLine } from 'lucide-react';
+import { TicketBreakdownTable } from '@/components/common/TicketBreakdownTable';
 import { getDashboardStats } from '@/services/revenue.service';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
@@ -88,6 +89,25 @@ export default function DashboardPage() {
         <StatCard label="Pending" value={formatNumber(data.bookings.pending)} tone="warning" icon={Clock} />
         <StatCard label="Cancelled" value={formatNumber(data.bookings.cancelled)} tone="destructive" icon={ClipboardCheck} />
         <StatCard label="Refunded" value={formatNumber(data.bookings.refunded)} tone="destructive" icon={Wallet} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Bookings &amp; remaining slots by ticket</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.ticketBreakdown.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No tickets created yet.</p>
+          ) : (
+            <TicketBreakdownTable rows={data.ticketBreakdown} />
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Tickets Issued" value={formatNumber(data.checkIn.issued)} icon={Ticket} />
+        <StatCard label="Checked In" value={formatNumber(data.checkIn.checkedIn)} icon={ScanLine} tone="success" />
+        <StatCard label="Yet to Arrive" value={formatNumber(data.checkIn.notArrived)} icon={Clock} tone="warning" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

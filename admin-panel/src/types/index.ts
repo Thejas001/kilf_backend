@@ -151,6 +151,24 @@ export interface ApiItemResponse<T> {
   message: string;
 }
 
+export interface TicketBreakdown {
+  id: string;
+  name: string;
+  ticketType: TicketType;
+  festival: { id: string; name: string };
+  price: number;
+  currency: string;
+  status: TicketSaleStatus;
+  totalQuantity: number;
+  remaining: number;
+  confirmedQuantity: number;
+  pendingQuantity: number;
+  utilizationPercentage: number;
+  bookings: { total: number; confirmed: number; pending: number; cancelled: number; refunded: number };
+  revenue: number;
+  checkIn: { issued: number; checkedIn: number; notArrived: number };
+}
+
 export interface DashboardStats {
   tickets: { total: number; sold: number; available: number; utilizationPercentage: number };
   bookings: {
@@ -171,6 +189,20 @@ export interface DashboardStats {
     ticketsSold: number;
   };
   sponsors: { total: number; active: number };
+  ticketBreakdown: TicketBreakdown[];
+  checkIn: {
+    issued: number;
+    checkedIn: number;
+    notArrived: number;
+    recent: {
+      id: string;
+      ticketNumber: string;
+      checkedInAt: string | null;
+      ticket: { name: string };
+      booking: { bookingNumber: string; customer: { name: string } };
+      checkedInBy: { name: string } | null;
+    }[];
+  };
   charts: {
     revenueByDay: { date: string; revenue: number; transactions: number }[];
     revenueByMonth: { month: string; revenue: number; transactions: number }[];

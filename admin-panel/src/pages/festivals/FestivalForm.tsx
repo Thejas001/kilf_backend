@@ -81,7 +81,7 @@ export function FestivalForm({ defaultValues, onSubmit, submitLabel }: FestivalF
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="name">Festival name</Label>
-              <Input id="name" placeholder="Kilf 2026" {...register('name')} />
+              <Input id="name" placeholder="KILF 2027" {...register('name')} />
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
