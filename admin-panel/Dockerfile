@@ -5,7 +5,7 @@ RUN npm install
 
 FROM node:20-alpine AS build
 WORKDIR /app
-ARG VITE_API_URL=http://localhost:4000
+ARG VITE_API_URL=https://api.kilf.in
 ENV VITE_API_URL=$VITE_API_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
