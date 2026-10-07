@@ -1,8 +1,11 @@
 import axios, { AxiosError } from 'axios';
 import { tokenStorage } from './tokenStorage';
 
+// Falls back to production API when VITE_API_URL is unset; an empty value (embedded build) stays same-origin.
+export const API_URL: string = import.meta.env.VITE_API_URL ?? 'https://api.kilf.in';
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -21,7 +24,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshToken) return null;
 
   try {
-    const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/auth/refresh`, {
+    const res = await axios.post(`${API_URL}/api/admin/auth/refresh`, {
       refreshToken,
     });
     const { token, refreshToken: newRefreshToken } = res.data.data;
