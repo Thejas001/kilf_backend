@@ -78,6 +78,20 @@ describe('Early bird registration', () => {
     expect(reg.body.data[0].whatsappNumber).toBe('9876543210');
   });
 
+  it('accepts INFLUENCER interestType and filters by it', async () => {
+    const res = await request(app)
+      .post('/api/early-bird')
+      .send({ ...valid, interestType: 'INFLUENCER' });
+    expect(res.status).toBe(201);
+
+    const { token } = await createAdmin();
+    const inf = await request(app)
+      .get('/api/admin/early-bird?interestType=INFLUENCER')
+      .set(authHeader(token));
+    expect(inf.body.data).toHaveLength(1);
+    expect(inf.body.data[0].interestType).toBe('INFLUENCER');
+  });
+
   it('requires admin auth to list and export', async () => {
     expect((await request(app).get('/api/admin/early-bird')).status).toBe(401);
     expect((await request(app).get('/api/admin/early-bird/export')).status).toBe(401);

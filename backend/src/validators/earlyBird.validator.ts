@@ -16,7 +16,7 @@ export const INTERESTS = [
   'FILM',
 ] as const;
 
-export const INTEREST_TYPES = ['REGISTER', 'VOLUNTEER', 'EXHIBIT', 'PARTNER'] as const;
+export const INTEREST_TYPES = ['REGISTER', 'VOLUNTEER', 'EXHIBIT', 'PARTNER', 'INFLUENCER'] as const;
 
 // Indian mobile number; accepts "98765 43210", "+91 98765 43210", "09876543210".
 const whatsappNumber = z

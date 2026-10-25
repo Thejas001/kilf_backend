@@ -25,7 +25,7 @@ const router = Router();
  *               email: { type: string, format: email }
  *               townOrCity: { type: string }
  *               ageGroup: { type: string, enum: ["Under 18", "18-24", "25-34", "35-44", "45-59", "60+"] }
- *               interestType: { type: string, enum: [REGISTER, VOLUNTEER, EXHIBIT, PARTNER], default: REGISTER }
+ *               interestType: { type: string, enum: [REGISTER, VOLUNTEER, EXHIBIT, PARTNER, INFLUENCER], default: REGISTER }
  *               interests:
  *                 type: array
  *                 items: { type: string, enum: [AUTHOR_TALKS, KHASAKKINTE_ITHIHASAM, MUSIC_EVENINGS, BOOK_FAIR, OPEN_MIC_POETRY, NEW_YEARS_EVE, WORKSHOPS, YOUTH, THEATRE, MUSIC, FILM] }

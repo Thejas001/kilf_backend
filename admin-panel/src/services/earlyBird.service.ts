@@ -1,13 +1,14 @@
 import { api } from './api';
 import { ApiListResponse } from '@/types';
 
-export type EarlyBirdType = 'REGISTER' | 'VOLUNTEER' | 'EXHIBIT' | 'PARTNER';
+export type EarlyBirdType = 'REGISTER' | 'VOLUNTEER' | 'EXHIBIT' | 'PARTNER' | 'INFLUENCER';
 
 export const EARLY_BIRD_TYPES: { value: EarlyBirdType; label: string }[] = [
   { value: 'REGISTER', label: 'Register' },
   { value: 'VOLUNTEER', label: 'Volunteer' },
   { value: 'EXHIBIT', label: 'Exhibit' },
   { value: 'PARTNER', label: 'Partner' },
+  { value: 'INFLUENCER', label: 'Influencer' },
 ];
 
 export const AGE_GROUPS = ['Under 18', '18-24', '25-34', '35-44', '45-59', '60+'];

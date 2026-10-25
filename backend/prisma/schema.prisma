@@ -321,6 +321,7 @@ enum EarlyBirdType {
   VOLUNTEER
   EXHIBIT
   PARTNER
+  INFLUENCER
 }
 
 model EarlyBirdRegistration {
