@@ -7,6 +7,7 @@ const STATUS_VARIANTS: Record<string, NonNullable<BadgeProps['variant']>> = {
   CANCELLED: 'destructive',
   REFUNDED: 'secondary',
   EXPIRED: 'destructive',
+  PAYMENT_REVIEW: 'warning',
   // Payments
   PENDING: 'warning',
   SUCCESS: 'success',
@@ -23,7 +24,8 @@ const STATUS_VARIANTS: Record<string, NonNullable<BadgeProps['variant']>> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING_PAYMENT: 'Pending Payment',
+  PENDING_PAYMENT: 'Pending payment',
+  PAYMENT_REVIEW: 'Needs review',
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -53,6 +53,12 @@ export default {
           DEFAULT: 'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
         },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          muted: 'hsl(var(--sidebar-muted))',
+          active: 'hsl(var(--sidebar-active))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

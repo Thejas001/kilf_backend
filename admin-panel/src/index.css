@@ -31,14 +31,19 @@
     --success: 160 60% 30%;
     --success-foreground: 0 0% 98%;
 
-    --warning: 30 90% 48%;
+    --warning: 30 90% 36%;
     --warning-foreground: 0 0% 98%;
 
     --border: 218 35% 87%;
     --input: 218 35% 82%;
     --ring: 225 90% 42%;
 
-    --radius: 0.25rem;
+    --sidebar: 230 65% 14%;
+    --sidebar-foreground: 215 40% 86%;
+    --sidebar-muted: 222 28% 64%;
+    --sidebar-active: 225 80% 46%;
+
+    --radius: 0.5rem;
   }
 
   .dark {
@@ -75,6 +80,11 @@
     --border: 228 30% 22%;
     --input: 228 30% 24%;
     --ring: 222 90% 62%;
+
+    --sidebar: 230 55% 6%;
+    --sidebar-foreground: 215 40% 86%;
+    --sidebar-muted: 222 28% 64%;
+    --sidebar-active: 222 80% 50%;
   }
 
   * {

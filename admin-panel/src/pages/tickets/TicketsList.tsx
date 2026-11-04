@@ -1,41 +1,41 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, ClipboardList, Ticket as TicketIcon } from 'lucide-react';
+import { Archive, Plus, Pencil, Trash2, Ticket as TicketIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/common/EmptyState';
-import { ErrorState } from '@/components/common/ErrorState';
-import { PaginationBar } from '@/components/common/PaginationBar';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { deleteTicket, listTickets, updateTicketStatus } from '@/services/ticket.service';
-import { formatCurrency } from '@/lib/utils';
+import { DataPanel } from '@/components/common/DataPanel';
+import { FilterSelect, SearchInput } from '@/components/common/ListControls';
+import { ProgressBar } from '@/components/common/ProgressBar';
+import { useListParams } from '@/hooks/useListParams';
+import { archiveTicket, deleteTicket, listTickets, updateTicketStatus } from '@/services/ticket.service';
+import { formatCurrency, formatLabel, formatNumber } from '@/lib/utils';
 import { TicketSaleStatus, TicketType } from '@/types';
 import { getApiErrorMessage } from '@/services/api';
 
 const TICKET_TYPES: TicketType[] = ['GENERAL', 'VIP', 'STUDENT', 'EARLY_BIRD', 'DAY_PASS', 'FULL_FESTIVAL'];
+const FILTER_KEYS = ['search', 'type'] as const;
 
 export default function TicketsListPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [ticketType, setTicketType] = useState<TicketType | 'ALL'>('ALL');
+  const { page, get, setFilter, setPage, hasFilters, clearFilters } = useListParams(FILTER_KEYS);
+  const search = get('search');
+  const ticketType = get('type');
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, isPlaceholderData, refetch } = useQuery({
     queryKey: ['tickets', page, search, ticketType],
     queryFn: () =>
       listTickets({
         page,
         limit: 10,
         search: search || undefined,
-        ticketType: ticketType === 'ALL' ? undefined : ticketType,
+        ticketType: (ticketType as TicketType) || undefined,
       }),
+    placeholderData: keepPreviousData,
   });
 
   const deleteMutation = useMutation({
@@ -45,6 +45,15 @@ export default function TicketsListPage() {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to delete ticket')),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: archiveTicket,
+    onSuccess: () => {
+      toast.success('Ticket archived');
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to archive ticket')),
   });
 
   const statusMutation = useMutation({
@@ -64,89 +73,86 @@ export default function TicketsListPage() {
         actions={
           <Button asChild>
             <Link to="/tickets/create">
-              <Plus className="h-4 w-4" /> Create Ticket
+              <Plus className="h-4 w-4" /> Create ticket
             </Link>
           </Button>
         }
       />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-        <Input
-          placeholder="Search tickets..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="sm:max-w-xs"
-        />
-        <Select
-          value={ticketType}
-          onValueChange={(v) => {
-            setTicketType(v as TicketType | 'ALL');
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="sm:w-48">
-            <SelectValue placeholder="All types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All types</SelectItem>
-            {TICKET_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>
-                {t.replace('_', ' ')}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {isLoading && <Skeleton className="h-96" />}
-      {isError && <ErrorState onRetry={() => refetch()} />}
-
-      {data && data.data.length === 0 && (
-        <EmptyState
-          icon={TicketIcon}
-          title="No tickets yet"
-          description="Create a ticket type to start selling to the public."
-          action={
-            <Button asChild size="sm">
-              <Link to="/tickets/create">Create Ticket</Link>
-            </Button>
-          }
-        />
-      )}
-
-      {data && data.data.length > 0 && (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Festival</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Inventory</TableHead>
-                <TableHead>Remaining</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.data.map((ticket) => (
+      <DataPanel
+        filters={
+          <>
+            <SearchInput value={search} onChange={(v) => setFilter('search', v)} placeholder="Search tickets" />
+            <FilterSelect
+              value={ticketType}
+              onChange={(v) => setFilter('type', v)}
+              allLabel="All types"
+              options={TICKET_TYPES.map((t) => ({ value: t, label: formatLabel(t) }))}
+            />
+          </>
+        }
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={() => refetch()}
+        isEmpty={data?.data.length === 0}
+        isStale={isPlaceholderData}
+        hasFilters={hasFilters}
+        onClearFilters={clearFilters}
+        pagination={data?.pagination}
+        onPageChange={setPage}
+        empty={
+          <EmptyState
+            icon={TicketIcon}
+            title="No tickets yet"
+            description="Create a ticket type to start selling to the public."
+            action={
+              <Button asChild size="sm">
+                <Link to="/tickets/create">Create ticket</Link>
+              </Button>
+            }
+          />
+        }
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ticket</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Sold</TableHead>
+              <TableHead>Remaining</TableHead>
+              <TableHead>On sale</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data?.data.map((ticket) => {
+              const sold = ticket.totalQuantity - ticket.availableQuantity;
+              return (
                 <TableRow key={ticket.id}>
-                  <TableCell className="font-medium">{ticket.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{ticket.festival?.name ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{ticket.ticketType.replace('_', ' ')}</TableCell>
-                  <TableCell>{formatCurrency(ticket.price, ticket.currency)}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {ticket.totalQuantity - ticket.availableQuantity} / {ticket.totalQuantity} sold
+                  <TableCell>
+                    <Link to={`/tickets/${ticket.id}/edit`} className="font-medium hover:text-primary hover:underline">
+                      {ticket.name}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">
+                      {formatLabel(ticket.ticketType)}
+                      {ticket.festival?.name ? ` • ${ticket.festival.name}` : ''}
+                    </p>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{formatCurrency(ticket.price)}</TableCell>
+                  <TableCell>
+                    <div className="min-w-32">
+                      <ProgressBar value={sold} max={ticket.totalQuantity} />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatNumber(sold)} of {formatNumber(ticket.totalQuantity)}
+                      </p>
+                    </div>
                   </TableCell>
                   <TableCell className={ticket.availableQuantity === 0 ? 'font-medium text-destructive' : 'font-medium'}>
-                    {ticket.availableQuantity === 0 ? 'Sold out' : ticket.availableQuantity}
+                    {ticket.availableQuantity === 0 ? 'Sold out' : formatNumber(ticket.availableQuantity)}
                   </TableCell>
                   <TableCell>
                     <Switch
+                      aria-label={`${ticket.name} on sale`}
                       checked={ticket.status === 'ACTIVE'}
                       onCheckedChange={(checked) =>
                         statusMutation.mutate({ id: ticket.id, status: checked ? 'ACTIVE' : 'INACTIVE' })
@@ -154,38 +160,62 @@ export default function TicketsListPage() {
                     />
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" asChild title="View bookings">
-                        <Link to={`/bookings?ticketId=${ticket.id}`}>
-                          <ClipboardList className="h-4 w-4" />
-                        </Link>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to={`/bookings?ticketId=${ticket.id}`}>Bookings</Link>
                       </Button>
-                      <Button variant="ghost" size="icon" asChild>
+                      <Button variant="ghost" size="icon" asChild title="Edit ticket" aria-label={`Edit ${ticket.name}`}>
                         <Link to={`/tickets/${ticket.id}/edit`}>
                           <Pencil className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <ConfirmDialog
-                        trigger={
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        }
-                        title="Delete ticket"
-                        description={`Are you sure you want to delete "${ticket.name}"? This cannot be undone.`}
-                        confirmLabel="Delete"
-                        variant="destructive"
-                        onConfirm={() => deleteMutation.mutateAsync(ticket.id)}
-                      />
+                      {sold > 0 ? (
+                        <ConfirmDialog
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Archive ticket"
+                              aria-label={`Archive ${ticket.name}`}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                          }
+                          title="Archive ticket"
+                          description={`"${ticket.name}" has bookings, so it can't be deleted. Archiving hides it from this list and stops sales; existing bookings are kept.`}
+                          confirmLabel="Archive"
+                          variant="destructive"
+                          onConfirm={() => archiveMutation.mutateAsync(ticket.id)}
+                        />
+                      ) : (
+                        <ConfirmDialog
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete ticket"
+                              aria-label={`Delete ${ticket.name}`}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          }
+                          title="Delete ticket"
+                          description={`Are you sure you want to delete "${ticket.name}"? This cannot be undone.`}
+                          confirmLabel="Delete"
+                          variant="destructive"
+                          onConfirm={() => deleteMutation.mutateAsync(ticket.id)}
+                        />
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <PaginationBar pagination={data.pagination} onPageChange={setPage} />
-        </>
-      )}
+              );
+            })}
+          </TableBody>
+        </Table>
+      </DataPanel>
     </div>
   );
 }

@@ -22,7 +22,12 @@ export default function TicketCreatePage() {
 
   return (
     <div>
-      <PageHeader title="Create Ticket" description="Add a new ticket type for a festival" />
+      <PageHeader
+        title="Create Ticket"
+        description="Add a new ticket type for a festival"
+        backTo="/tickets"
+        backLabel="Back to tickets"
+      />
       <TicketForm onSubmit={handleSubmit} submitLabel="Create Ticket" />
     </div>
   );

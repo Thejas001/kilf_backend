@@ -18,7 +18,12 @@ export default function SponsorCreatePage() {
 
   return (
     <div>
-      <PageHeader title="Add Sponsor" description="Add a new festival sponsor" />
+      <PageHeader
+        title="Add Sponsor"
+        description="Add a new festival sponsor. You can upload a logo after saving."
+        backTo="/sponsors"
+        backLabel="Back to sponsors"
+      />
       <SponsorForm onSubmit={handleSubmit} submitLabel="Create Sponsor" />
     </div>
   );

@@ -14,6 +14,7 @@ import SponsorsListPage from '@/pages/sponsors/SponsorsList';
 import SponsorCreatePage from '@/pages/sponsors/SponsorCreate';
 import SponsorEditPage from '@/pages/sponsors/SponsorEdit';
 import EarlyBirdListPage from '@/pages/earlyBird/EarlyBirdList';
+import EarlyBirdDetailPage from '@/pages/earlyBird/EarlyBirdDetail';
 import EnquiriesListPage from '@/pages/enquiries/EnquiriesList';
 import RevenuePage from '@/pages/Revenue';
 import CheckInPage from '@/pages/CheckIn';
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/sponsors/:id/edit" element={<SponsorEditPage />} />
 
           <Route path="/early-bird" element={<EarlyBirdListPage />} />
+          <Route path="/early-bird/:id" element={<EarlyBirdDetailPage />} />
           <Route path="/enquiries" element={<EnquiriesListPage />} />
 
           <Route path="/revenue" element={<RevenuePage />} />

@@ -1,5 +1,6 @@
-import { Menu, ChevronDown, User, Settings, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Fragment } from 'react';
+import { Menu, ChevronDown, ChevronRight, User, Settings, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
@@ -9,13 +10,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getBreadcrumbs } from './navigation';
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const breadcrumbs = getBreadcrumbs(pathname);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:px-6">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:px-8">
       <button
         className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary lg:hidden"
         onClick={onMenuClick}
@@ -24,7 +28,22 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex-1" />
+      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+        {breadcrumbs.map((crumb) => (
+          <Fragment key={crumb.label}>
+            {crumb.to ? (
+              <>
+                <Link to={crumb.to} className="truncate text-muted-foreground hover:text-foreground">
+                  {crumb.label}
+                </Link>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </>
+            ) : (
+              <span className="truncate font-medium">{crumb.label}</span>
+            )}
+          </Fragment>
+        ))}
+      </nav>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

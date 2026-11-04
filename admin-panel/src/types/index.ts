@@ -40,7 +40,6 @@ export interface Ticket {
   description: string | null;
   ticketType: TicketType;
   price: string | number;
-  currency: string;
   totalQuantity: number;
   availableQuantity: number;
   salesStart: string;
@@ -53,7 +52,7 @@ export interface Ticket {
   utilizationPercentage?: number;
 }
 
-export type BookingStatus = 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED' | 'REFUNDED' | 'EXPIRED';
+export type BookingStatus = 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED' | 'REFUNDED' | 'EXPIRED' | 'PAYMENT_REVIEW';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
 
 export interface Customer {
@@ -66,7 +65,14 @@ export interface Customer {
 export interface Payment {
   id: string;
   provider: string;
+  /** Gateway order id (order_...). */
   providerPaymentId: string | null;
+  /** Gateway payment id of the captured attempt (pay_...). */
+  gatewayPaymentId: string | null;
+  refundId: string | null;
+  method: string | null;
+  failureReason: string | null;
+  lastCheckedAt: string | null;
   amount: string | number;
   currency: string;
   status: PaymentStatus;
@@ -157,7 +163,6 @@ export interface TicketBreakdown {
   ticketType: TicketType;
   festival: { id: string; name: string };
   price: number;
-  currency: string;
   status: TicketSaleStatus;
   totalQuantity: number;
   remaining: number;

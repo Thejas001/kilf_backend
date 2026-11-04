@@ -7,10 +7,10 @@ import { toast } from 'sonner';
 import { Sponsor } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { Field, FormActions, FormSection } from '@/components/common/FormLayout';
 import { getApiErrorMessage } from '@/services/api';
 
 const sponsorSchema = z.object({
@@ -68,103 +68,92 @@ export function SponsorForm({ defaultValues, onSubmit, submitLabel, extra }: Spo
 
   return (
     <Card>
-      <CardContent className="p-6">
-        {extra}
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="name">Sponsor name</Label>
-              <Input id="name" placeholder="Penguin Random House" {...register('name')} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-            </div>
+      {extra && (
+        <FormSection title="Logo" description="Shown on the public festival website.">
+          <div className="sm:col-span-2">{extra}</div>
+        </FormSection>
+      )}
+      <form onSubmit={handleSubmit(handleFormSubmit)}>
+        <FormSection title="Sponsor details" description="The public profile of this sponsor.">
+          <Field label="Sponsor name" htmlFor="name" required error={errors.name?.message}>
+            <Input id="name" placeholder="Penguin Random House" {...register('name')} />
+          </Field>
+          <Field label="Website URL" htmlFor="websiteUrl" error={errors.websiteUrl?.message}>
+            <Input id="websiteUrl" placeholder="https://..." {...register('websiteUrl')} />
+          </Field>
+          <Field label="Description" htmlFor="description" wide>
+            <Textarea id="description" rows={3} {...register('description')} />
+          </Field>
+        </FormSection>
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" rows={3} {...register('description')} />
-            </div>
+        <FormSection title="Sponsorship" description="The tier, amount, and where this sponsor appears in listings.">
+          <Field label="Sponsorship level" required>
+            <Controller
+              control={control}
+              name="sponsorshipLevel"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger aria-label="Sponsorship level">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TITLE">Title</SelectItem>
+                    <SelectItem value="PLATINUM">Platinum</SelectItem>
+                    <SelectItem value="GOLD">Gold</SelectItem>
+                    <SelectItem value="SILVER">Silver</SelectItem>
+                    <SelectItem value="BRONZE">Bronze</SelectItem>
+                    <SelectItem value="PARTNER">Partner</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+          <Field label="Sponsorship amount" htmlFor="amount" error={errors.amount?.message}>
+            <Input id="amount" type="number" step="0.01" min="0" {...register('amount')} />
+          </Field>
+          <Field label="Display order" htmlFor="displayOrder" hint="Lower numbers appear first.">
+            <Input id="displayOrder" type="number" {...register('displayOrder')} />
+          </Field>
+          <Field label="Status" required>
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger aria-label="Status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+        </FormSection>
 
-            <div className="space-y-1.5">
-              <Label>Sponsorship level</Label>
-              <Controller
-                control={control}
-                name="sponsorshipLevel"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="TITLE">Title</SelectItem>
-                      <SelectItem value="PLATINUM">Platinum</SelectItem>
-                      <SelectItem value="GOLD">Gold</SelectItem>
-                      <SelectItem value="SILVER">Silver</SelectItem>
-                      <SelectItem value="BRONZE">Bronze</SelectItem>
-                      <SelectItem value="PARTNER">Partner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
+        <FormSection title="Contact person" description="For internal use. Who to reach at this sponsor.">
+          <Field label="Contact name" htmlFor="contactName">
+            <Input id="contactName" {...register('contactName')} />
+          </Field>
+          <Field label="Contact phone" htmlFor="contactPhone">
+            <Input id="contactPhone" {...register('contactPhone')} />
+          </Field>
+          <Field label="Contact email" htmlFor="contactEmail" error={errors.contactEmail?.message}>
+            <Input id="contactEmail" type="email" {...register('contactEmail')} />
+          </Field>
+        </FormSection>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="amount">Sponsorship amount</Label>
-              <Input id="amount" type="number" step="0.01" min="0" {...register('amount')} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="websiteUrl">Website URL</Label>
-              <Input id="websiteUrl" placeholder="https://..." {...register('websiteUrl')} />
-              {errors.websiteUrl && <p className="text-xs text-destructive">{errors.websiteUrl.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="displayOrder">Display order</Label>
-              <Input id="displayOrder" type="number" {...register('displayOrder')} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="contactName">Contact name</Label>
-              <Input id="contactName" {...register('contactName')} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="contactEmail">Contact email</Label>
-              <Input id="contactEmail" type="email" {...register('contactEmail')} />
-              {errors.contactEmail && <p className="text-xs text-destructive">{errors.contactEmail.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="contactPhone">Contact phone</Label>
-              <Input id="contactPhone" {...register('contactPhone')} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-border pt-4">
-            <Button type="button" variant="outline" onClick={() => navigate('/sponsors')}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {submitLabel}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
+        <FormActions>
+          <Button type="button" variant="outline" onClick={() => navigate('/sponsors')}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            {submitLabel}
+          </Button>
+        </FormActions>
+      </form>
     </Card>
   );
 }

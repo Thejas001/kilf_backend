@@ -1,74 +1,29 @@
 import { NavLink } from 'react-router-dom';
-import {
-  BookOpen,
-  LayoutDashboard,
-  Ticket,
-  ClipboardList,
-  ScanLine,
-  Handshake,
-  Sparkles,
-  MessageSquare,
-  LineChart,
-  Settings,
-  LogOut,
-  X,
-} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { BookOpen, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-
-interface NavItem {
-  label: string;
-  to: string;
-  icon: typeof LayoutDashboard;
-  end?: boolean;
-}
-
-interface NavGroup {
-  label?: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  { items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, end: true }] },
-  {
-    label: 'Tickets',
-    items: [
-      { label: 'All Tickets', to: '/tickets', icon: Ticket, end: true },
-      { label: 'Create Ticket', to: '/tickets/create', icon: Ticket },
-    ],
-  },
-  {
-    label: 'Bookings',
-    items: [
-      { label: 'All Bookings', to: '/bookings', icon: ClipboardList },
-      { label: 'Check-in', to: '/check-in', icon: ScanLine },
-    ],
-  },
-  { items: [{ label: 'Sponsors', to: '/sponsors', icon: Handshake }] },
-  { items: [{ label: 'Early Bird', to: '/early-bird', icon: Sparkles }] },
-  { items: [{ label: 'Enquiries', to: '/enquiries', icon: MessageSquare }] },
-  { items: [{ label: 'Revenue', to: '/revenue', icon: LineChart }] },
-  { items: [{ label: 'Settings', to: '/admin/settings', icon: Settings }] },
-];
+import { listEnquiries } from '@/services/enquiry.service';
+import { NAV_GROUPS } from './navigation';
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const { admin, logout } = useAuth();
+  const { data: pendingEnquiries } = useQuery({
+    queryKey: ['enquiries', 'pending-count'],
+    queryFn: () => listEnquiries({ page: 1, limit: 1, status: 'PENDING' }),
+  });
+  const pendingCount = pendingEnquiries?.pagination.total ?? 0;
 
   return (
-    <div className="flex h-full flex-col bg-card">
-      <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <BookOpen className="h-4.5 w-4.5" />
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex h-14 shrink-0 items-center gap-2.5 px-5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-active text-white">
+          <BookOpen className="h-4 w-4" />
         </div>
-        <div>
-          <p className="font-serif text-base font-extrabold leading-tight text-primary">
-            kilf <span className="text-xs font-semibold text-foreground">2027</span>
-          </p>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Kollam Intl. Literature Festival</p>
+        <div className="min-w-0">
+          <p className="font-serif text-sm font-bold leading-tight text-white">KILF 2027</p>
+          <p className="text-xs text-sidebar-muted">Admin console</p>
         </div>
         <button
-          className="ml-auto rounded-md p-1 text-muted-foreground hover:bg-secondary lg:hidden"
+          className="ml-auto rounded-md p-1 text-sidebar-muted hover:bg-white/10 hover:text-white lg:hidden"
           onClick={onNavigate}
           aria-label="Close menu"
         >
@@ -76,54 +31,39 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </button>
       </div>
 
-      <nav className="scrollbar-thin flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {NAV_GROUPS.map((group, idx) => (
-          <div key={idx}>
-            {group.label && (
-              <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {group.label}
-              </p>
-            )}
+      <nav className="scrollbar-thin flex-1 space-y-6 overflow-y-auto px-3 py-4">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <p className="mb-1.5 px-2.5 text-xs font-semibold text-sidebar-muted">{group.label}</p>
             <div className="space-y-0.5">
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.end}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-foreground/80 hover:bg-secondary hover:text-foreground'
+                      isActive ? 'bg-sidebar-active text-white' : 'hover:bg-white/10 hover:text-white'
                     )
                   }
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                   {item.label}
+                  {item.to === '/enquiries' && pendingCount > 0 && (
+                    <span
+                      className="ml-auto rounded-full bg-accent px-2 py-0.5 text-xs font-semibold leading-none text-white"
+                      title={`${pendingCount} pending`}
+                    >
+                      {pendingCount}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>
           </div>
         ))}
       </nav>
-
-      <div className="border-t border-border p-3">
-        <div className="mb-2 flex items-center gap-2 rounded-md px-2 py-1.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-sm font-semibold text-accent-foreground">
-            {admin?.name?.charAt(0) ?? 'A'}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{admin?.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{admin?.email}</p>
-          </div>
-        </div>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2.5 text-muted-foreground" onClick={logout}>
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
-      </div>
     </div>
   );
 }

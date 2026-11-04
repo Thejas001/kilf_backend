@@ -35,6 +35,11 @@ export async function refundBooking(id: string, reason?: string): Promise<Bookin
   return res.data.data;
 }
 
+export async function recheckPayment(id: string): Promise<Booking> {
+  const res = await api.post<ApiItemResponse<Booking>>(`/api/admin/bookings/${id}/recheck-payment`);
+  return res.data.data;
+}
+
 export async function exportBookingsCsv(params: BookingListParams): Promise<void> {
   const res = await api.get('/api/admin/bookings/export', { params, responseType: 'blob' });
   const blobUrl = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));

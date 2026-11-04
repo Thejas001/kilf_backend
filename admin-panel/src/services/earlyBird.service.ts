@@ -37,6 +37,7 @@ export interface EarlyBirdRegistration {
   ageGroup: string;
   interests: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface EarlyBirdListParams {
@@ -53,6 +54,11 @@ export async function listEarlyBird(
 ): Promise<ApiListResponse<EarlyBirdRegistration>> {
   const res = await api.get('/api/admin/early-bird', { params });
   return res.data;
+}
+
+export async function getEarlyBird(id: string): Promise<EarlyBirdRegistration> {
+  const res = await api.get(`/api/admin/early-bird/${id}`);
+  return res.data.data;
 }
 
 export async function exportEarlyBirdCsv(params: Omit<EarlyBirdListParams, 'page' | 'limit'>): Promise<void> {

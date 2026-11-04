@@ -26,7 +26,6 @@ export interface TicketInput {
   description?: string;
   ticketType: TicketType;
   price: number;
-  currency: string;
   totalQuantity: number;
   salesStart: string;
   salesEnd: string;
@@ -45,6 +44,10 @@ export async function updateTicket(id: string, input: Partial<TicketInput>): Pro
 
 export async function deleteTicket(id: string): Promise<void> {
   await api.delete(`/api/admin/tickets/${id}`);
+}
+
+export async function archiveTicket(id: string): Promise<void> {
+  await api.post(`/api/admin/tickets/${id}/archive`);
 }
 
 export async function updateTicketStatus(id: string, status: TicketSaleStatus): Promise<Ticket> {

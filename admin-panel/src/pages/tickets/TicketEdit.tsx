@@ -35,7 +35,12 @@ export default function TicketEditPage() {
 
   return (
     <div>
-      <PageHeader title="Edit Ticket" description="Update ticket pricing, inventory, and sales window" />
+      <PageHeader
+        title="Edit Ticket"
+        description="Update ticket pricing, inventory, and sales window"
+        backTo="/tickets"
+        backLabel="Back to tickets"
+      />
       {isLoading && <Skeleton className="h-96" />}
       {isError && <ErrorState onRetry={() => refetch()} />}
       {ticket && (

@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Eye } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatLabel, formatNumber } from '@/lib/utils';
 import { TicketBreakdown } from '@/types';
 
 function SlotsBar({ row }: { row: TicketBreakdown }) {
@@ -11,7 +10,7 @@ function SlotsBar({ row }: { row: TicketBreakdown }) {
   const pendingPct = row.totalQuantity ? (row.pendingQuantity / row.totalQuantity) * 100 : 0;
   return (
     <div className="min-w-36">
-      <div className="flex h-2 overflow-hidden rounded-full bg-secondary">
+      <div className="flex h-1.5 overflow-hidden rounded-full bg-secondary">
         <div className="bg-success" style={{ width: `${confirmedPct}%` }} />
         <div className="bg-warning" style={{ width: `${pendingPct}%` }} />
       </div>
@@ -33,7 +32,7 @@ export function TicketBreakdownTable({ rows }: { rows: TicketBreakdown[] }) {
           <TableHead className="text-right">Bookings</TableHead>
           <TableHead className="text-right">Checked in</TableHead>
           <TableHead className="text-right">Revenue</TableHead>
-          <TableHead className="text-right" />
+          <TableHead />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -42,7 +41,7 @@ export function TicketBreakdownTable({ rows }: { rows: TicketBreakdown[] }) {
             <TableCell>
               <p className="font-medium">{row.name}</p>
               <p className="text-xs text-muted-foreground">
-                {row.festival.name} • {row.ticketType.replace('_', ' ')} • {formatCurrency(row.price, row.currency)}
+                {formatLabel(row.ticketType)} • {formatCurrency(row.price)}
               </p>
             </TableCell>
             <TableCell>
@@ -55,21 +54,21 @@ export function TicketBreakdownTable({ rows }: { rows: TicketBreakdown[] }) {
                 <span className="font-medium">{formatNumber(row.remaining)}</span>
               )}
             </TableCell>
-            <TableCell className="text-right text-xs">
+            <TableCell className="whitespace-nowrap text-right text-xs">
               <p className="text-sm font-medium">{row.bookings.total}</p>
               <p className="text-muted-foreground">
                 {row.bookings.confirmed} confirmed · {row.bookings.pending} pending
               </p>
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className="whitespace-nowrap text-right">
               {row.checkIn.checkedIn} / {row.checkIn.issued}
             </TableCell>
-            <TableCell className="text-right">{formatCurrency(row.revenue, row.currency)}</TableCell>
+            <TableCell className="whitespace-nowrap text-right font-medium">
+              {formatCurrency(row.revenue)}
+            </TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="sm" asChild>
-                <Link to={`/bookings?ticketId=${row.id}`}>
-                  <Eye className="h-4 w-4" /> Bookings
-                </Link>
+                <Link to={`/bookings?ticketId=${row.id}`}>View bookings</Link>
               </Button>
             </TableCell>
           </TableRow>

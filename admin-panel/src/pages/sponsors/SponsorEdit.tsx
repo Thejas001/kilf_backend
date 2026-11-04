@@ -52,7 +52,12 @@ export default function SponsorEditPage() {
 
   return (
     <div>
-      <PageHeader title="Edit Sponsor" description="Update sponsor details and branding" />
+      <PageHeader
+        title="Edit Sponsor"
+        description="Update sponsor details and branding"
+        backTo="/sponsors"
+        backLabel="Back to sponsors"
+      />
       {isLoading && <Skeleton className="h-96" />}
       {isError && <ErrorState onRetry={() => refetch()} />}
       {sponsor && (
@@ -61,7 +66,7 @@ export default function SponsorEditPage() {
           onSubmit={(v) => mutation.mutateAsync(v)}
           submitLabel="Save Changes"
           extra={
-            <div className="mb-5 flex items-center gap-4 rounded-md border border-dashed border-border p-4">
+            <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-secondary">
                 {sponsor.logoUrl ? (
                   <img src={sponsor.logoUrl} alt={sponsor.name} className="h-full w-full object-contain" />
@@ -70,7 +75,6 @@ export default function SponsorEditPage() {
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium">Sponsor logo</p>
                 <p className="text-xs text-muted-foreground">PNG, JPEG, WEBP or SVG, up to 5MB</p>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />

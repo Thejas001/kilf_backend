@@ -1,34 +1,32 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Download, ClipboardList, Eye, Ban } from 'lucide-react';
+import { Download, ClipboardList, Ban } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState';
-import { ErrorState } from '@/components/common/ErrorState';
-import { PaginationBar } from '@/components/common/PaginationBar';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { Skeleton } from '@/components/ui/skeleton';
+import { DataPanel } from '@/components/common/DataPanel';
+import { FilterSelect, FilterTabs, SearchInput } from '@/components/common/ListControls';
+import { useListParams } from '@/hooks/useListParams';
 import { listTickets } from '@/services/ticket.service';
 import { cancelBooking, exportBookingsCsv, listBookings } from '@/services/booking.service';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatLabel } from '@/lib/utils';
 import { BookingStatus } from '@/types';
 import { getApiErrorMessage } from '@/services/api';
 
-const STATUSES: BookingStatus[] = ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 'REFUNDED', 'EXPIRED'];
+const STATUSES: BookingStatus[] = ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 'REFUNDED', 'EXPIRED', 'PAYMENT_REVIEW'];
+const FILTER_KEYS = ['search', 'status', 'ticketId'] as const;
 
 export default function BookingsListPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<BookingStatus | 'ALL'>('ALL');
+  const { page, get, setFilter, setPage, hasFilters, clearFilters } = useListParams(FILTER_KEYS);
+  const search = get('search');
+  const status = get('status');
+  const ticketId = get('ticketId');
   const [exporting, setExporting] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const ticketId = searchParams.get('ticketId') ?? 'ALL';
 
   const { data: ticketOptions } = useQuery({
     queryKey: ['tickets', 'options'],
@@ -41,13 +39,14 @@ export default function BookingsListPage() {
     page,
     limit: 15,
     search: search || undefined,
-    status: status === 'ALL' ? undefined : status,
-    ticketId: ticketId === 'ALL' ? undefined : ticketId,
+    status: (status as BookingStatus) || undefined,
+    ticketId: ticketId || undefined,
   };
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, isPlaceholderData, refetch } = useQuery({
     queryKey: ['bookings', page, search, status, ticketId],
     queryFn: () => listBookings(params),
+    placeholderData: keepPreviousData,
   });
 
   const cancelMutation = useMutation({
@@ -82,135 +81,126 @@ export default function BookingsListPage() {
         }
       />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-        <Input
-          placeholder="Search by booking #, name, email, phone..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="sm:max-w-sm"
-        />
-        <Select
-          value={ticketId}
-          onValueChange={(v) => {
-            setSearchParams(v === 'ALL' ? {} : { ticketId: v });
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="sm:w-60">
-            <SelectValue placeholder="All tickets" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All tickets</SelectItem>
-            {ticketOptions?.data.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={status}
-          onValueChange={(v) => {
-            setStatus(v as BookingStatus | 'ALL');
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="sm:w-52">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All statuses</SelectItem>
-            {STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s.replace('_', ' ')}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {selectedTicket && (
-        <p className="mb-3 text-sm text-muted-foreground">
-          {selectedTicket.name}: {selectedTicket.availableQuantity} of {selectedTicket.totalQuantity} slots remaining
-        </p>
-      )}
-
-      {isLoading && <Skeleton className="h-96" />}
-      {isError && <ErrorState onRetry={() => refetch()} />}
-
-      {data && data.data.length === 0 && (
-        <EmptyState icon={ClipboardList} title="No bookings found" description="Bookings will appear here once customers start purchasing tickets." />
-      )}
-
-      {data && data.data.length > 0 && (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Booking #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Ticket(s)</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+      <DataPanel
+        tabs={
+          <FilterTabs
+            value={status}
+            onChange={(v) => setFilter('status', v)}
+            allLabel="All"
+            options={STATUSES.map((s) => ({ value: s, label: formatLabel(s) }))}
+          />
+        }
+        filters={
+          <>
+            <SearchInput
+              value={search}
+              onChange={(v) => setFilter('search', v)}
+              placeholder="Search booking #, name, email, phone"
+            />
+            <FilterSelect
+              value={ticketId}
+              onChange={(v) => setFilter('ticketId', v)}
+              allLabel="All tickets"
+              className="sm:w-60"
+              options={(ticketOptions?.data ?? []).map((t) => ({ value: t.id, label: t.name }))}
+            />
+            {selectedTicket && (
+              <p className="self-center text-sm text-muted-foreground">
+                {selectedTicket.availableQuantity} of {selectedTicket.totalQuantity} slots remaining
+              </p>
+            )}
+          </>
+        }
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={() => refetch()}
+        isEmpty={data?.data.length === 0}
+        isStale={isPlaceholderData}
+        hasFilters={hasFilters}
+        onClearFilters={clearFilters}
+        pagination={data?.pagination}
+        onPageChange={setPage}
+        empty={
+          <EmptyState
+            icon={ClipboardList}
+            title="No bookings yet"
+            description="Bookings will appear here once customers start purchasing tickets."
+          />
+        }
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Booking</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Tickets</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data?.data.map((booking) => (
+              <TableRow key={booking.id}>
+                <TableCell className="whitespace-nowrap">
+                  <Link
+                    to={`/bookings/${booking.id}`}
+                    className="font-mono text-xs font-medium text-primary hover:underline"
+                  >
+                    {booking.bookingNumber}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">{formatDate(booking.createdAt)}</p>
+                </TableCell>
+                <TableCell>
+                  <p className="font-medium">{booking.customer.name}</p>
+                  <p className="text-xs text-muted-foreground">{booking.customer.email}</p>
+                </TableCell>
+                <TableCell>
+                  <p>{booking.bookingItems.map((i) => i.ticket.name).join(', ')}</p>
+                  <p className="text-xs text-muted-foreground">Qty {booking.quantity}</p>
+                </TableCell>
+                <TableCell className="whitespace-nowrap font-medium">
+                  {formatCurrency(booking.totalAmount, booking.currency)}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={booking.payments[0]?.status ?? 'PENDING'} />
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
+                  <StatusBadge status={booking.status} />
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-end gap-1">
+                    {['PENDING_PAYMENT', 'CONFIRMED'].includes(booking.status) && (
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Cancel booking"
+                            aria-label={`Cancel booking ${booking.bookingNumber}`}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        }
+                        title="Cancel booking"
+                        description={`Cancel booking ${booking.bookingNumber}? Reserved inventory will be released.`}
+                        confirmLabel="Cancel booking"
+                        variant="destructive"
+                        onConfirm={() => cancelMutation.mutateAsync({ id: booking.id })}
+                      />
+                    )}
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to={`/bookings/${booking.id}`}>View</Link>
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.data.map((booking) => (
-                <TableRow key={booking.id}>
-                  <TableCell className="whitespace-nowrap font-mono text-xs">{booking.bookingNumber}</TableCell>
-                  <TableCell>
-                    <p className="font-medium">{booking.customer.name}</p>
-                    <p className="text-xs text-muted-foreground">{booking.customer.email}</p>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {booking.bookingItems.map((i) => i.ticket.name).join(', ')}
-                  </TableCell>
-                  <TableCell>{booking.quantity}</TableCell>
-                  <TableCell>{formatCurrency(booking.totalAmount, booking.currency)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={booking.payments[0]?.status ?? 'PENDING'} />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={booking.status} />
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(booking.createdAt)}</TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link to={`/bookings/${booking.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      {['PENDING_PAYMENT', 'CONFIRMED'].includes(booking.status) && (
-                        <ConfirmDialog
-                          trigger={
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                              <Ban className="h-4 w-4" />
-                            </Button>
-                          }
-                          title="Cancel booking"
-                          description={`Cancel booking ${booking.bookingNumber}? Reserved inventory will be released.`}
-                          confirmLabel="Cancel booking"
-                          variant="destructive"
-                          onConfirm={() => cancelMutation.mutateAsync({ id: booking.id })}
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <PaginationBar pagination={data.pagination} onPageChange={setPage} />
-        </>
-      )}
+            ))}
+          </TableBody>
+        </Table>
+      </DataPanel>
     </div>
   );
 }

@@ -7,10 +7,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Ticket } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { Field, FormActions, FormSection } from '@/components/common/FormLayout';
 import { getApiErrorMessage } from '@/services/api';
 import { listFestivals } from '@/services/festival.service';
 
@@ -21,7 +21,6 @@ const ticketSchema = z
     description: z.string().optional(),
     ticketType: z.enum(['GENERAL', 'VIP', 'STUDENT', 'EARLY_BIRD', 'DAY_PASS', 'FULL_FESTIVAL']),
     price: z.coerce.number().nonnegative('Price cannot be negative'),
-    currency: z.string().min(3).max(3).default('INR'),
     totalQuantity: z.coerce.number().int().positive('Must be at least 1'),
     salesStart: z.string().min(1, 'Sales start date is required'),
     salesEnd: z.string().min(1, 'Sales end date is required'),
@@ -68,7 +67,6 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
       description: defaultValues?.description ?? '',
       ticketType: defaultValues?.ticketType ?? 'GENERAL',
       price: defaultValues?.price ? Number(defaultValues.price) : 0,
-      currency: defaultValues?.currency ?? 'INR',
       totalQuantity: defaultValues?.totalQuantity ?? 100,
       salesStart: toInputDateTime(defaultValues?.salesStart) || toInputDateTime(new Date().toISOString()),
       salesEnd: toInputDateTime(defaultValues?.salesEnd),
@@ -86,122 +84,104 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
 
   return (
     <Card>
-      <CardContent className="p-6">
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Festival</Label>
-              <Controller
-                control={control}
-                name="festivalId"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={!!fixedFestivalId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a festival" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {festivalsData?.data.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.festivalId && <p className="text-xs text-destructive">{errors.festivalId.message}</p>}
-            </div>
+      <form onSubmit={handleSubmit(handleFormSubmit)}>
+        <FormSection title="Ticket details" description="What customers see when they choose a ticket.">
+          <Field label="Festival" required wide error={errors.festivalId?.message}>
+            <Controller
+              control={control}
+              name="festivalId"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange} disabled={!!fixedFestivalId}>
+                  <SelectTrigger aria-label="Festival">
+                    <SelectValue placeholder="Select a festival" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {festivalsData?.data.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="name">Ticket name</Label>
-              <Input id="name" placeholder="General Admission" {...register('name')} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-            </div>
+          <Field label="Ticket name" htmlFor="name" required error={errors.name?.message}>
+            <Input id="name" placeholder="General Admission" {...register('name')} />
+          </Field>
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" rows={3} {...register('description')} />
-            </div>
+          <Field label="Ticket type" required>
+            <Controller
+              control={control}
+              name="ticketType"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger aria-label="Ticket type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GENERAL">General</SelectItem>
+                    <SelectItem value="VIP">VIP</SelectItem>
+                    <SelectItem value="STUDENT">Student</SelectItem>
+                    <SelectItem value="EARLY_BIRD">Early Bird</SelectItem>
+                    <SelectItem value="DAY_PASS">Day Pass</SelectItem>
+                    <SelectItem value="FULL_FESTIVAL">Full Festival</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
 
-            <div className="space-y-1.5">
-              <Label>Ticket type</Label>
-              <Controller
-                control={control}
-                name="ticketType"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GENERAL">General</SelectItem>
-                      <SelectItem value="VIP">VIP</SelectItem>
-                      <SelectItem value="STUDENT">Student</SelectItem>
-                      <SelectItem value="EARLY_BIRD">Early Bird</SelectItem>
-                      <SelectItem value="DAY_PASS">Day Pass</SelectItem>
-                      <SelectItem value="FULL_FESTIVAL">Full Festival</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
+          <Field label="Description" htmlFor="description" wide>
+            <Textarea id="description" rows={3} {...register('description')} />
+          </Field>
+        </FormSection>
 
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
+        <FormSection title="Price and inventory" description="How much it costs and how many can be sold.">
+          <Field label="Price" htmlFor="price" required error={errors.price?.message}>
+            <Input id="price" type="number" step="0.01" min="0" {...register('price')} />
+          </Field>
+          <Field label="Total quantity" htmlFor="totalQuantity" required error={errors.totalQuantity?.message}>
+            <Input id="totalQuantity" type="number" min="1" {...register('totalQuantity')} />
+          </Field>
+        </FormSection>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="price">Price</Label>
-              <Input id="price" type="number" step="0.01" min="0" {...register('price')} />
-              {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="currency">Currency</Label>
-              <Input id="currency" maxLength={3} placeholder="INR" {...register('currency')} />
-            </div>
+        <FormSection title="Availability" description="When the ticket can be bought. Inactive tickets stay hidden from sale.">
+          <Field label="Sales start" htmlFor="salesStart" required error={errors.salesStart?.message}>
+            <Input id="salesStart" type="datetime-local" {...register('salesStart')} />
+          </Field>
+          <Field label="Sales end" htmlFor="salesEnd" required error={errors.salesEnd?.message}>
+            <Input id="salesEnd" type="datetime-local" {...register('salesEnd')} />
+          </Field>
+          <Field label="Status" required>
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger aria-label="Status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+        </FormSection>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="totalQuantity">Total quantity</Label>
-              <Input id="totalQuantity" type="number" min="1" {...register('totalQuantity')} />
-              {errors.totalQuantity && <p className="text-xs text-destructive">{errors.totalQuantity.message}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="salesStart">Sales start</Label>
-              <Input id="salesStart" type="datetime-local" {...register('salesStart')} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="salesEnd">Sales end</Label>
-              <Input id="salesEnd" type="datetime-local" {...register('salesEnd')} />
-              {errors.salesEnd && <p className="text-xs text-destructive">{errors.salesEnd.message}</p>}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-border pt-4">
-            <Button type="button" variant="outline" onClick={() => navigate('/tickets')}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {submitLabel}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
+        <FormActions>
+          <Button type="button" variant="outline" onClick={() => navigate('/tickets')}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            {submitLabel}
+          </Button>
+        </FormActions>
+      </form>
     </Card>
   );
 }
