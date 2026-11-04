@@ -68,6 +68,23 @@ router.patch(
 
 /**
  * @openapi
+ * /api/admin/bookings/{id}/recheck-payment:
+ *   post:
+ *     tags: [Admin Bookings]
+ *     summary: Re-verify the booking's payment with the gateway and settle the booking
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Payment re-checked }
+ */
+router.post(
+  '/:id/recheck-payment',
+  authorize('ADMIN', 'SUPER_ADMIN'),
+  validate(bookingIdParamSchema),
+  bookingController.recheckPayment
+);
+
+/**
+ * @openapi
  * /api/admin/bookings/{id}/refund:
  *   post:
  *     tags: [Admin Bookings]

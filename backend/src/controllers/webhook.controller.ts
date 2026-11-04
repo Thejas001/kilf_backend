@@ -5,7 +5,7 @@ import { ApiError } from '../utils/ApiError';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 import { prisma } from '../config/prisma';
-import { settlePaymentResult } from '../services/booking.service';
+import { settlePaymentResult, syncRefundStatus } from '../services/booking.service';
 import { recordAuditLog } from '../services/auditLog.service';
 
 /**
@@ -59,6 +59,10 @@ export const razorpayWebhook = asyncHandler(async (req: Request, res: Response) 
   }
 
   await settlePaymentResult(payment.bookingId, orderId);
+  // Refunds issued from the Razorpay dashboard arrive as refund.* events.
+  if (event?.startsWith('refund.')) {
+    await syncRefundStatus(payment.bookingId, orderId);
+  }
   await recordAuditLog({
     action: `RAZORPAY_WEBHOOK_${event ?? 'UNKNOWN'}`,
     entityType: 'Booking',

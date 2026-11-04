@@ -82,13 +82,22 @@ export class RazorpayPaymentProvider implements PaymentProvider {
         status: 'SUCCESS',
         amount: fromSubunits(captured.amount),
         currency: captured.currency,
+        gatewayPaymentId: String(captured.id),
+        method: captured.method ? String(captured.method) : undefined,
         raw: captured,
       };
     }
 
     const allFailed = items.length > 0 && items.every((p) => p.status === 'failed');
     if (allFailed) {
-      return { providerPaymentId: orderId, status: 'FAILED', raw: items };
+      const last = items[0] as { error_description?: string; method?: string };
+      return {
+        providerPaymentId: orderId,
+        status: 'FAILED',
+        method: last.method,
+        failureReason: last.error_description ?? undefined,
+        raw: items,
+      };
     }
 
     // No payment attempt yet, or one is still 'created'/'authorized'.

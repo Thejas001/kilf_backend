@@ -23,6 +23,10 @@ export interface VerifyPaymentResult {
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
   amount?: number;
   currency?: string;
+  /** Gateway's id for the captured attempt (e.g. Razorpay `pay_...`). */
+  gatewayPaymentId?: string;
+  method?: string;
+  failureReason?: string;
   raw?: unknown;
 }
 

@@ -9,6 +9,7 @@ import * as bookingRepository from '../repositories/booking.repository';
 import { env } from '../config/env';
 import { ageOn, toIstDate } from '../utils/istDate';
 import { releaseShowSeats } from './showSeats';
+import { logger } from '../config/logger';
 
 export interface AttendeeInput {
   name: string;
@@ -343,58 +344,196 @@ export async function createBooking(input: CreateBookingInput) {
   return { booking: finalBooking, payment: paymentResult };
 }
 
+/** Cancel reason set automatically when every payment attempt failed (as opposed to an admin cancelling). */
+const AUTO_CANCEL_REASON = 'Payment failed';
+
+/**
+ * Takes the booking's inventory back after its hold was released (late payment).
+ * Returns false, changing nothing, if any ticket or show seat is no longer available.
+ */
+async function reclaimInventory(
+  tx: Prisma.TransactionClient,
+  booking: { id: string; bookingItems: { ticketId: string; quantity: number }[] }
+): Promise<boolean> {
+  const byTicket = new Map<string, number>();
+  for (const i of booking.bookingItems) byTicket.set(i.ticketId, (byTicket.get(i.ticketId) ?? 0) + i.quantity);
+
+  const attendees = await tx.bookingAttendee.findMany({
+    where: { bookingItem: { bookingId: booking.id }, showSessionId: { not: null } },
+    select: { showSessionId: true },
+  });
+  const bySession = new Map<string, number>();
+  for (const a of attendees) bySession.set(a.showSessionId!, (bySession.get(a.showSessionId!) ?? 0) + 1);
+
+  // Same lock order as new bookings (tickets, then sessions sorted by id) to avoid deadlocks.
+  const tickets = [...byTicket].sort(([a], [b]) => a.localeCompare(b));
+  const sessions = [...bySession].sort(([a], [b]) => a.localeCompare(b));
+
+  for (const [ticketId, qty] of tickets) {
+    await tx.$executeRaw`SELECT id FROM tickets WHERE id = ${ticketId} FOR UPDATE`;
+    const t = await tx.ticket.findUnique({ where: { id: ticketId } });
+    if (!t || t.availableQuantity < qty) return false;
+  }
+  for (const [sessionId, count] of sessions) {
+    await tx.$executeRaw`SELECT id FROM show_sessions WHERE id = ${sessionId} FOR UPDATE`;
+    const s = await tx.showSession.findUnique({ where: { id: sessionId } });
+    if (!s || s.availableSeats < count) return false;
+  }
+
+  for (const [ticketId, qty] of tickets) {
+    await tx.ticket.update({ where: { id: ticketId }, data: { availableQuantity: { decrement: qty } } });
+  }
+  for (const [sessionId, count] of sessions) {
+    await tx.showSession.update({ where: { id: sessionId }, data: { availableSeats: { decrement: count } } });
+  }
+  return true;
+}
+
 /**
  * Verifies a payment on the backend (via PaymentProvider.verifyPayment) and
- * settles the booking accordingly. Called synchronously right after
- * creating a mock payment, and also exposed as a standalone confirm
- * endpoint for gateways where payment completion happens asynchronously
- * (redirect/webhook).
+ * settles the booking accordingly. Called after creating a payment, from the
+ * confirm endpoint, the Razorpay webhook, the reconciliation job, the hold-expiry
+ * job and the admin "re-check" button. Safe to call any number of times.
+ *
+ * Outcomes by booking state when the gateway reports a captured payment:
+ *  - PENDING_PAYMENT: confirm (or PAYMENT_REVIEW if the amount does not match).
+ *  - EXPIRED / auto-cancelled (late payment): re-claim the inventory and confirm
+ *    if it is still free, otherwise PAYMENT_REVIEW so an admin refunds the customer.
+ *  - admin-cancelled: PAYMENT_REVIEW (customer paid for a booking we cancelled).
+ *  - already CONFIRMED / REFUNDED / PAYMENT_REVIEW: only payment details are refreshed.
+ *
+ * PAYMENT_REVIEW invariant: the booking holds no inventory and has no tickets.
  */
 export async function settlePaymentResult(bookingId: string, providerPaymentId: string) {
   const verification = await paymentProvider.verifyPayment({ providerPaymentId });
+  const include = { bookingItems: true, customer: true, payments: true, ticketInstances: true } as const;
 
   return prisma.$transaction(async (tx) => {
-    const booking = await tx.booking.findUnique({
-      where: { id: bookingId },
-      include: { bookingItems: true, customer: true, payments: true },
-    });
+    // Serialise concurrent settlers (webhook + client confirm + jobs) on this booking.
+    await tx.$executeRaw`SELECT id FROM bookings WHERE id = ${bookingId} FOR UPDATE`;
+
+    const booking = await tx.booking.findUnique({ where: { id: bookingId }, include });
     if (!booking) throw ApiError.notFound('Booking not found');
 
-    // Idempotent: if already settled, just return current state.
-    if (booking.status !== 'PENDING_PAYMENT') {
-      return tx.booking.findUnique({
-        where: { id: bookingId },
-        include: { bookingItems: true, customer: true, payments: true, ticketInstances: true },
-      });
+    const payment = booking.payments.find((p) => p.providerPaymentId === providerPaymentId);
+    if (payment) {
+      const data: Prisma.PaymentUpdateInput = { lastCheckedAt: new Date() };
+      if (payment.status !== 'REFUNDED') {
+        if (verification.status === 'SUCCESS') data.status = 'SUCCESS';
+        else if (verification.status === 'FAILED' && payment.status === 'PENDING') data.status = 'FAILED';
+      }
+      if (verification.gatewayPaymentId) data.gatewayPaymentId = verification.gatewayPaymentId;
+      if (verification.method) data.method = verification.method;
+      if (verification.failureReason) data.failureReason = verification.failureReason;
+      await tx.payment.update({ where: { id: payment.id }, data });
     }
+
+    const reload = () => tx.booking.findUnique({ where: { id: bookingId }, include });
+    const items = booking.bookingItems.map((i) => ({ ticketId: i.ticketId, quantity: i.quantity }));
+    const amountMismatch =
+      verification.status === 'SUCCESS' &&
+      verification.amount !== undefined &&
+      Math.abs(verification.amount - Number(booking.totalAmount)) > 0.009;
+    const mismatchReason = `Amount mismatch: gateway captured ${verification.amount}, expected ${booking.totalAmount}`;
+
+    if (booking.status === 'PENDING_PAYMENT') {
+      if (verification.status === 'SUCCESS' && amountMismatch) {
+        await releaseInventory(tx, bookingId, items);
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: 'PAYMENT_REVIEW', cancelReason: mismatchReason },
+        });
+      } else if (verification.status === 'SUCCESS') {
+        await tx.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED' } });
+        await issueTicketInstances(tx, bookingId, booking.bookingItems);
+      } else if (verification.status === 'FAILED') {
+        await releaseInventory(tx, bookingId, items);
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: AUTO_CANCEL_REASON },
+        });
+      }
+      // PENDING: leave as PENDING_PAYMENT for the client to retry/poll.
+      return reload();
+    }
+
+    // The booking already left PENDING_PAYMENT; only a *new* capture needs action.
+    if (verification.status !== 'SUCCESS') return reload();
+
+    const isAutoReleased =
+      booking.status === 'EXPIRED' ||
+      (booking.status === 'CANCELLED' && booking.cancelReason === AUTO_CANCEL_REASON);
+
+    if (isAutoReleased) {
+      if (!amountMismatch && (await reclaimInventory(tx, booking))) {
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: 'CONFIRMED', cancelledAt: null, cancelReason: null },
+        });
+        await issueTicketInstances(tx, bookingId, booking.bookingItems);
+        logger.info({ bookingId }, 'Late payment recovered: booking confirmed after hold release');
+      } else {
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: 'PAYMENT_REVIEW',
+            cancelReason: amountMismatch
+              ? mismatchReason
+              : 'Paid after the hold expired and tickets are sold out - refund the customer',
+          },
+        });
+        logger.warn({ bookingId }, 'Late payment could not be honoured; booking flagged PAYMENT_REVIEW');
+      }
+    } else if (booking.status === 'CANCELLED') {
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'PAYMENT_REVIEW', cancelReason: 'Paid after an admin cancelled the booking - refund the customer' },
+      });
+      logger.warn({ bookingId }, 'Payment captured for admin-cancelled booking; flagged PAYMENT_REVIEW');
+    }
+    // CONFIRMED / REFUNDED / PAYMENT_REVIEW: nothing more to do.
+
+    return reload();
+  });
+}
+
+/**
+ * Picks up refunds made outside this app (e.g. from the Razorpay dashboard):
+ * if the gateway says the payment is fully refunded, mirror that locally.
+ */
+export async function syncRefundStatus(bookingId: string, providerPaymentId: string) {
+  const status = await paymentProvider.getPaymentStatus(providerPaymentId);
+  if (status.status !== 'REFUNDED') return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM bookings WHERE id = ${bookingId} FOR UPDATE`;
+    const booking = await tx.booking.findUnique({
+      where: { id: bookingId },
+      include: { bookingItems: true, payments: true },
+    });
+    if (!booking || !['CONFIRMED', 'PAYMENT_REVIEW'].includes(booking.status)) return;
 
     const payment = booking.payments.find((p) => p.providerPaymentId === providerPaymentId);
     if (payment) {
       await tx.payment.update({
         where: { id: payment.id },
-        data: { status: verification.status },
+        data: { status: 'REFUNDED', refundedAmount: payment.amount, lastCheckedAt: new Date() },
       });
     }
-
-    if (verification.status === 'SUCCESS') {
-      await tx.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED' } });
-      await issueTicketInstances(tx, bookingId, booking.bookingItems);
-    } else if (verification.status === 'FAILED') {
+    if (booking.status === 'CONFIRMED') {
       await releaseInventory(
         tx,
         bookingId,
         booking.bookingItems.map((i) => ({ ticketId: i.ticketId, quantity: i.quantity }))
       );
-      await tx.booking.update({
-        where: { id: bookingId },
-        data: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: 'Payment failed' },
+      await tx.ticketInstance.updateMany({
+        where: { bookingId, status: 'VALID' },
+        data: { status: 'CANCELLED' },
       });
     }
-    // PENDING: leave booking as PENDING_PAYMENT for the client to retry/poll.
-
-    return tx.booking.findUnique({
+    await tx.booking.update({
       where: { id: bookingId },
-      include: { bookingItems: true, customer: true, payments: true, ticketInstances: true },
+      data: { status: 'REFUNDED', cancelledAt: new Date(), cancelReason: 'Refunded via payment gateway' },
     });
   });
 }
@@ -407,6 +546,21 @@ export async function confirmPaymentByBookingNumber(bookingNumber: string) {
   if (!latestPayment) throw ApiError.badRequest('No payment found for this booking');
 
   return settlePaymentResult(booking.id, latestPayment.providerPaymentId!);
+}
+
+/** Admin "re-check with gateway": re-verifies every payment attempt and returns the fresh booking. */
+export async function recheckPayments(bookingId: string) {
+  const booking = await bookingRepository.findById(bookingId);
+  if (!booking) throw ApiError.notFound('Booking not found');
+
+  const ids = booking.payments.map((p) => p.providerPaymentId).filter((x): x is string => !!x);
+  if (ids.length === 0) throw ApiError.badRequest('This booking has no payment to re-check');
+
+  for (const id of ids) {
+    await settlePaymentResult(bookingId, id);
+    await syncRefundStatus(bookingId, id);
+  }
+  return bookingRepository.findById(bookingId);
 }
 
 export interface ListBookingsParams {
@@ -476,12 +630,12 @@ export async function cancelBooking(id: string, reason?: string) {
   });
 }
 
-/** Refunds a confirmed booking's successful payment and returns inventory. */
+/** Refunds a confirmed (or payment-review) booking's captured payment and returns inventory. */
 export async function refundBooking(id: string, reason?: string) {
   const booking = await bookingRepository.findById(id);
   if (!booking) throw ApiError.notFound('Booking not found');
-  if (booking.status !== 'CONFIRMED') {
-    throw ApiError.badRequest('Only confirmed bookings can be refunded');
+  if (!['CONFIRMED', 'PAYMENT_REVIEW'].includes(booking.status)) {
+    throw ApiError.badRequest('Only confirmed or payment-review bookings can be refunded');
   }
 
   const successfulPayment = booking.payments.find((p) => p.status === 'SUCCESS');
@@ -496,25 +650,40 @@ export async function refundBooking(id: string, reason?: string) {
   });
 
   if (refundResult.status !== 'SUCCESS') {
+    await prisma.payment.update({
+      where: { id: successfulPayment.id },
+      data: { failureReason: `Refund failed at ${new Date().toISOString()}` },
+    });
     throw ApiError.badRequest('Refund could not be processed by the payment provider');
   }
 
   return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM bookings WHERE id = ${id} FOR UPDATE`;
+    const current = await tx.booking.findUnique({ where: { id } });
+    // A gateway refund webhook may have already applied this refund.
+    if (!current || !['CONFIRMED', 'PAYMENT_REVIEW'].includes(current.status)) return current!;
+
     await tx.payment.update({
       where: { id: successfulPayment.id },
-      data: { status: 'REFUNDED', refundedAmount: successfulPayment.amount },
+      data: {
+        status: 'REFUNDED',
+        refundedAmount: successfulPayment.amount,
+        refundId: refundResult.refundId || undefined,
+      },
     });
 
-    await releaseInventory(
-      tx,
-      id,
-      booking.bookingItems.map((i) => ({ ticketId: i.ticketId, quantity: i.quantity }))
-    );
-
-    await tx.ticketInstance.updateMany({
-      where: { bookingId: id, status: 'VALID' },
-      data: { status: 'CANCELLED' },
-    });
+    // PAYMENT_REVIEW bookings hold no inventory and have no tickets.
+    if (current.status === 'CONFIRMED') {
+      await releaseInventory(
+        tx,
+        id,
+        booking.bookingItems.map((i) => ({ ticketId: i.ticketId, quantity: i.quantity }))
+      );
+      await tx.ticketInstance.updateMany({
+        where: { bookingId: id, status: 'VALID' },
+        data: { status: 'CANCELLED' },
+      });
+    }
 
     return tx.booking.update({
       where: { id },

@@ -134,7 +134,21 @@ export const updateStatus = asyncHandler(async (req: Request, res: Response) => 
   return sendSuccess(res, booking, 'Booking cancelled');
 });
 
-export const refund = asyncHandler(async (req: Request, res: Response) => {
+export const recheckPayment = asyncHandler(async (req: Request, res: Response) => {
+  const before = await bookingService.getBooking(req.params.id);
+  const booking = await bookingService.recheckPayments(req.params.id);
+  await recordAuditLogFromRequest(
+    req,
+    'RECHECKED_PAYMENT',
+    'Booking',
+    before.id,
+    { status: before.status },
+    { status: booking!.status }
+  );
+  return sendSuccess(res, booking, 'Payment re-checked with the gateway');
+});
+
+export const refund =asyncHandler(async (req: Request, res: Response) => {
   const before = await bookingService.getBooking(req.params.id);
   const booking = await bookingService.refundBooking(req.params.id, req.body.reason);
   await recordAuditLogFromRequest(

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const BookingStatusEnum = z.enum(['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 'REFUNDED', 'EXPIRED']);
+const BookingStatusEnum = z.enum(['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 'REFUNDED', 'EXPIRED', 'PAYMENT_REVIEW']);
 
 const attendeeSchema = z.object({
   name: z.string().min(2).max(200),

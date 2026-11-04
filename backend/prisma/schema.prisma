@@ -52,6 +52,9 @@ enum BookingStatus {
   CANCELLED
   REFUNDED
   EXPIRED
+  /// Money was captured but the booking could not be confirmed (late payment with
+  /// no inventory left, or an amount mismatch). Inventory is NOT held. Admin must refund.
+  PAYMENT_REVIEW
 }
 
 enum PaymentStatus {
@@ -284,7 +287,12 @@ model Payment {
   id                String              @id @default(uuid())
   bookingId         String              @map("booking_id")
   provider          PaymentProviderType @default(MOCK)
+  /// Gateway order id (Razorpay `order_...`); the stable key we look payments up by.
   providerPaymentId String?             @map("provider_payment_id")
+  /// Gateway payment id of the captured attempt (Razorpay `pay_...`) - what admins search for in the dashboard.
+  gatewayPaymentId  String?             @map("gateway_payment_id")
+  refundId          String?             @map("refund_id")
+  lastCheckedAt     DateTime?           @map("last_checked_at")
   amount            Decimal             @db.Decimal(12, 2)
   currency          String              @default("INR")
   status            PaymentStatus       @default(PENDING)
