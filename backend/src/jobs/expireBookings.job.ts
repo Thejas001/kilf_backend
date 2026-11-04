@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { logger } from '../config/logger';
+import { releaseShowSeats } from '../services/showSeats';
 
 /**
  * Expires PENDING_PAYMENT bookings whose hold window has passed and
@@ -22,6 +23,8 @@ export async function expireStaleBookings(): Promise<number> {
           data: { availableQuantity: { increment: item.quantity } },
         });
       }
+
+      await releaseShowSeats(tx, booking.id);
 
       await tx.booking.update({
         where: { id: booking.id },

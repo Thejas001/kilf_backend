@@ -3,6 +3,9 @@ import { prisma } from '../src/config/prisma';
 async function truncateAll() {
   const tables = [
     'audit_logs',
+    'ticket_check_ins',
+    'booking_attendees',
+    'show_sessions',
     'ticket_instances',
     'payments',
     'booking_items',

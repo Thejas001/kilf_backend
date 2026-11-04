@@ -15,7 +15,12 @@ export interface BookingListFilters {
 const listInclude = {
   customer: true,
   festival: { select: { id: true, name: true } },
-  bookingItems: { include: { ticket: { select: { id: true, name: true, ticketType: true } } } },
+  bookingItems: {
+    include: {
+      ticket: { select: { id: true, name: true, ticketType: true } },
+      attendees: { include: { showSession: { select: { id: true, name: true, startsAt: true } } } },
+    },
+  },
   payments: { orderBy: { createdAt: 'desc' as const }, take: 1 },
 };
 

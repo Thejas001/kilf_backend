@@ -26,6 +26,11 @@ export const exportCsv = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).send(csv);
 });
 
+export const getOne = asyncHandler(async (req: Request, res: Response) => {
+  const result = await earlyBirdService.getById(req.params.id);
+  return sendSuccess(res, result, 'Early bird registration fetched');
+});
+
 export const remove = asyncHandler(async (req: Request, res: Response) => {
   const before = await earlyBirdService.remove(req.params.id);
   await recordAuditLogFromRequest(req, 'DELETED_EARLY_BIRD', 'EarlyBirdRegistration', req.params.id, before, null);

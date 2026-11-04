@@ -35,6 +35,19 @@ router.get('/export', validate(exportEarlyBirdSchema), earlyBirdController.expor
 /**
  * @openapi
  * /api/admin/early-bird/{id}:
+ *   get:
+ *     tags: [Admin Early Bird]
+ *     summary: Get an early bird registration
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Registration }
+ *       404: { description: Not found }
+ */
+router.get('/:id', validate(earlyBirdIdParamSchema), earlyBirdController.getOne);
+
+/**
+ * @openapi
+ * /api/admin/early-bird/{id}:
  *   delete:
  *     tags: [Admin Early Bird]
  *     summary: Delete an early bird registration

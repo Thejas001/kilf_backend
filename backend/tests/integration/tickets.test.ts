@@ -17,7 +17,6 @@ describe('Ticket management', () => {
         name: 'General Admission',
         ticketType: 'GENERAL',
         price: 500,
-        currency: 'INR',
         totalQuantity: 100,
         salesStart: new Date(Date.now() - 1000).toISOString(),
         salesEnd: new Date(Date.now() + 100000000).toISOString(),

@@ -80,6 +80,12 @@ export async function exportCsv(filters: EarlyBirdFilters) {
   );
 }
 
+export async function getById(id: string) {
+  const registration = await prisma.earlyBirdRegistration.findUnique({ where: { id } });
+  if (!registration) throw ApiError.notFound('Registration not found');
+  return registration;
+}
+
 export async function remove(id: string) {
   const before = await prisma.earlyBirdRegistration.findUnique({ where: { id } });
   if (!before) throw ApiError.notFound('Registration not found');

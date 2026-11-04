@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/config/prisma';
-import { createAdmin, createFestival, createTicket, authHeader } from '../utils/factories';
+import { createAdmin, createFestival, createTicket, authHeader, attendees } from '../utils/factories';
 
 const app = createApp();
 
@@ -13,7 +13,7 @@ describe('Ticket verification / check-in', () => {
       .post('/api/bookings')
       .send({
         ticketId: ticket.id,
-        quantity: 1,
+        quantity: 1, attendees: attendees(1),
         customer: { name: 'Scan Me', email: `scan.${Date.now()}@example.com`, phone: '+919876543210' },
       });
     const instance = await prisma.ticketInstance.findFirstOrThrow({

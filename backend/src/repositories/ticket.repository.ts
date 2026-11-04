@@ -14,6 +14,7 @@ function buildWhere(
   filters: Pick<TicketListFilters, 'festivalId' | 'status' | 'ticketType' | 'search'>
 ): Prisma.TicketWhereInput {
   return {
+    archivedAt: null,
     ...(filters.festivalId ? { festivalId: filters.festivalId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.ticketType ? { ticketType: filters.ticketType } : {}),

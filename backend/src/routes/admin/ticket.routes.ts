@@ -71,6 +71,23 @@ router.delete(
 
 /**
  * @openapi
+ * /api/admin/tickets/{id}/archive:
+ *   post:
+ *     tags: [Admin Tickets]
+ *     summary: Archive a ticket (hides it, keeps its bookings)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Ticket archived }
+ */
+router.post(
+  '/:id/archive',
+  authorize('ADMIN', 'SUPER_ADMIN'),
+  validate(ticketIdParamSchema),
+  ticketController.archive
+);
+
+/**
+ * @openapi
  * /api/admin/tickets/{id}/status:
  *   patch:
  *     tags: [Admin Tickets]

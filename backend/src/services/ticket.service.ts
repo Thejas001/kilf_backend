@@ -4,6 +4,38 @@ import { getFestival } from './festival.service';
 import { ApiError } from '../utils/ApiError';
 import { buildPagination } from '../utils/apiResponse';
 
+export interface PassRules {
+  gstRate: number;
+  requiresDate: boolean;
+  requiresShowSession: boolean;
+  minAge: number | null;
+  maxAge: number | null;
+  multiDay: boolean;
+  perks: string[];
+}
+
+/** Rules each pass type implies; anything the admin sends explicitly overrides these. */
+const TYPE_PRESETS: Partial<Record<TicketType, Partial<PassRules>>> = {
+  DAY_PASS: { requiresDate: true },
+  FULL_FESTIVAL: { multiDay: true },
+  YOUNG_READER: { multiDay: true },
+  ELITE: { multiDay: true, requiresShowSession: true },
+  KHASAK_SHOW: { requiresShowSession: true },
+  NEW_YEAR_EVE: { gstRate: 0 },
+};
+
+function assertPriceMatchesType(ticketType: TicketType, price: number) {
+  if (ticketType === 'NEW_YEAR_EVE' && price !== 0) {
+    throw ApiError.badRequest("New Year's Eve registration is free; price must be 0");
+  }
+}
+
+function assertAgeRange(minAge?: number | null, maxAge?: number | null) {
+  if (minAge != null && maxAge != null && minAge > maxAge) {
+    throw ApiError.badRequest('minAge cannot be greater than maxAge');
+  }
+}
+
 export interface ListTicketsParams {
   page: number;
   limit: number;
@@ -50,13 +82,15 @@ export async function createTicket(data: {
   description?: string;
   ticketType: TicketType;
   price: number;
-  currency: string;
   totalQuantity: number;
   salesStart: Date;
   salesEnd: Date;
   status?: TicketSaleStatus;
-}) {
+} & Partial<PassRules>) {
   await getFestival(data.festivalId); // ensures festival exists
+  assertPriceMatchesType(data.ticketType, data.price);
+  assertAgeRange(data.minAge, data.maxAge);
+  const preset = TYPE_PRESETS[data.ticketType] ?? {};
 
   return ticketRepository.create({
     festivalId: data.festivalId,
@@ -64,12 +98,18 @@ export async function createTicket(data: {
     description: data.description,
     ticketType: data.ticketType,
     price: data.price,
-    currency: data.currency,
     totalQuantity: data.totalQuantity,
     availableQuantity: data.totalQuantity,
     salesStart: data.salesStart,
     salesEnd: data.salesEnd,
     status: data.status ?? 'ACTIVE',
+    gstRate: data.gstRate ?? preset.gstRate ?? 18,
+    requiresDate: data.requiresDate ?? preset.requiresDate ?? false,
+    requiresShowSession: data.requiresShowSession ?? preset.requiresShowSession ?? false,
+    minAge: data.minAge ?? null,
+    maxAge: data.maxAge ?? null,
+    multiDay: data.multiDay ?? preset.multiDay ?? false,
+    perks: data.perks ?? [],
   });
 }
 
@@ -80,14 +120,16 @@ export async function updateTicket(
     description: string;
     ticketType: TicketType;
     price: number;
-    currency: string;
     totalQuantity: number;
     salesStart: Date;
     salesEnd: Date;
     status: TicketSaleStatus;
-  }>
+  }> &
+    Partial<PassRules>
 ) {
   const ticket = await getTicket(id);
+  assertPriceMatchesType(data.ticketType ?? ticket.ticketType, data.price ?? Number(ticket.price));
+  assertAgeRange(data.minAge ?? ticket.minAge, data.maxAge ?? ticket.maxAge);
   const updateData: Record<string, unknown> = { ...data };
 
   if (data.totalQuantity !== undefined && data.totalQuantity !== ticket.totalQuantity) {
@@ -163,9 +205,20 @@ function toPublicTicketDto(ticket: Awaited<ReturnType<typeof ticketRepository.fi
     description: ticket.description,
     ticketType: ticket.ticketType,
     price: ticket.price,
-    currency: ticket.currency,
     availableQuantity: ticket.availableQuantity,
     salesStart: ticket.salesStart,
     salesEnd: ticket.salesEnd,
+    gstRate: ticket.gstRate,
+    requiresDate: ticket.requiresDate,
+    requiresShowSession: ticket.requiresShowSession,
+    minAge: ticket.minAge,
+    maxAge: ticket.maxAge,
+    multiDay: ticket.multiDay,
+    perks: ticket.perks,
   };
+}
+
+export async function archiveTicket(id: string) {
+  await getTicket(id);
+  return ticketRepository.update(id, { archivedAt: new Date(), status: 'INACTIVE' });
 }

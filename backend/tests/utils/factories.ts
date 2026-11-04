@@ -44,6 +44,12 @@ export async function createTicket(
     salesStart: Date;
     salesEnd: Date;
     status: 'ACTIVE' | 'INACTIVE';
+    gstRate: number;
+    requiresDate: boolean;
+    requiresShowSession: boolean;
+    minAge: number;
+    maxAge: number;
+    multiDay: boolean;
   }> = {}
 ) {
   const totalQuantity = overrides.totalQuantity ?? 100;
@@ -54,14 +60,42 @@ export async function createTicket(
       description: 'Test ticket',
       ticketType: overrides.ticketType ?? 'GENERAL',
       price: overrides.price ?? 500,
-      currency: 'INR',
       totalQuantity,
       availableQuantity: overrides.availableQuantity ?? totalQuantity,
       salesStart: overrides.salesStart ?? new Date(Date.now() - 24 * 60 * 60 * 1000),
       salesEnd: overrides.salesEnd ?? new Date(Date.now() + 24 * 60 * 60 * 1000),
       status: overrides.status ?? 'ACTIVE',
+      // Tests assert on plain prices, so GST is off unless a test opts in.
+      gstRate: overrides.gstRate ?? 0,
+      requiresDate: overrides.requiresDate ?? false,
+      requiresShowSession: overrides.requiresShowSession ?? false,
+      minAge: overrides.minAge,
+      maxAge: overrides.maxAge,
+      multiDay: overrides.multiDay ?? false,
     },
   });
+}
+
+export async function createShowSession(
+  festivalId: string,
+  overrides: Partial<{ totalSeats: number; availableSeats: number; startsAt: Date }> = {}
+) {
+  const totalSeats = overrides.totalSeats ?? 10;
+  return prisma.showSession.create({
+    data: {
+      festivalId,
+      name: 'Khasakkinte Ithihasam',
+      venue: 'Test Hall',
+      startsAt: overrides.startsAt ?? new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      totalSeats,
+      availableSeats: overrides.availableSeats ?? totalSeats,
+    },
+  });
+}
+
+/** `count` attendee entries for a booking request body. */
+export function attendees(count: number) {
+  return Array.from({ length: count }, (_, i) => ({ name: `Guest ${i + 1}` }));
 }
 
 export function authHeader(token: string) {

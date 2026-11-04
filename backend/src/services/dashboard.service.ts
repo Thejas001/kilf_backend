@@ -64,7 +64,6 @@ async function getTicketBreakdown() {
       ticketType: t.ticketType,
       festival: t.festival,
       price: toNumber(t.price),
-      currency: t.currency,
       status: t.status,
       totalQuantity: t.totalQuantity,
       remaining,

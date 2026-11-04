@@ -5,12 +5,12 @@ import * as checkinService from '../services/checkin.service';
 import { recordAuditLogFromRequest } from '../services/auditLog.service';
 
 export const verify = asyncHandler(async (req: Request, res: Response) => {
-  const result = await checkinService.verifyTicket(req.body.ticketNumber);
+  const result = await checkinService.verifyTicket(req.body.ticketNumber, req.body.venue);
   return sendSuccess(res, result, result.valid ? 'Ticket verified' : 'Ticket is not valid');
 });
 
 export const checkIn = asyncHandler(async (req: Request, res: Response) => {
-  const instance = await checkinService.checkInTicket(req.body.ticketNumber, req.admin!.id);
+  const instance = await checkinService.checkInTicket(req.body.ticketNumber, req.admin!.id, req.body.venue);
   await recordAuditLogFromRequest(
     req,
     'CHECKED_IN_TICKET',

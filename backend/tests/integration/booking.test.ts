@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/config/prisma';
-import { createAdmin, createFestival, createTicket, authHeader } from '../utils/factories';
+import { createAdmin, createFestival, createTicket, authHeader, attendees } from '../utils/factories';
 
 const app = createApp();
 
@@ -20,7 +20,7 @@ describe('Booking flow', () => {
 
     const res = await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 2, customer: customerPayload() });
+      .send({ ticketId: ticket.id, quantity: 2, attendees: attendees(2), customer: customerPayload() });
 
     expect(res.status).toBe(201);
     expect(res.body.data.booking.status).toBe('CONFIRMED');
@@ -43,7 +43,7 @@ describe('Booking flow', () => {
 
     const res = await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 10, customer: customerPayload() });
+      .send({ ticketId: ticket.id, quantity: 10, attendees: attendees(10), customer: customerPayload() });
 
     expect(res.status).toBe(409);
 
@@ -58,10 +58,10 @@ describe('Booking flow', () => {
     const [resA, resB] = await Promise.all([
       request(app)
         .post('/api/bookings')
-        .send({ ticketId: ticket.id, quantity: 1, customer: customerPayload({ email: 'a@example.com' }) }),
+        .send({ ticketId: ticket.id, quantity: 1, attendees: attendees(1), customer: customerPayload({ email: 'a@example.com' }) }),
       request(app)
         .post('/api/bookings')
-        .send({ ticketId: ticket.id, quantity: 1, customer: customerPayload({ email: 'b@example.com' }) }),
+        .send({ ticketId: ticket.id, quantity: 1, attendees: attendees(1), customer: customerPayload({ email: 'b@example.com' }) }),
     ]);
 
     const statuses = [resA.status, resB.status].sort();
@@ -80,7 +80,7 @@ describe('Booking flow', () => {
       .post('/api/bookings')
       .send({
         ticketId: ticket.id,
-        quantity: 1,
+        quantity: 1, attendees: attendees(1),
         customer: customerPayload({ email: 'fail-payment@example.com' }),
       });
 
@@ -98,7 +98,7 @@ describe('Booking flow', () => {
 
     const bookingRes = await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 2, customer: customerPayload() });
+      .send({ ticketId: ticket.id, quantity: 2, attendees: attendees(2), customer: customerPayload() });
 
     const booking = await prisma.booking.findUnique({
       where: { bookingNumber: bookingRes.body.data.booking.bookingNumber },
@@ -123,7 +123,7 @@ describe('Booking flow', () => {
 
     const bookingRes = await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 2, customer: customerPayload() });
+      .send({ ticketId: ticket.id, quantity: 2, attendees: attendees(2), customer: customerPayload() });
     expect(bookingRes.body.data.booking.status).toBe('CONFIRMED');
 
     const booking = await prisma.booking.findUnique({

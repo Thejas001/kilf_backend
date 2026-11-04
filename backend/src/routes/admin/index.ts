@@ -10,6 +10,7 @@ import revenueRoutes from './revenue.routes';
 import auditLogRoutes from './auditLog.routes';
 import earlyBirdRoutes from './earlyBird.routes';
 import enquiryRoutes from './enquiry.routes';
+import showSessionRoutes from './showSession.routes';
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use('/revenue', revenueRoutes);
 router.use('/audit-logs', auditLogRoutes);
 router.use('/early-bird', earlyBirdRoutes);
 router.use('/enquiries', enquiryRoutes);
+router.use('/show-sessions', showSessionRoutes);
 
 export default router;

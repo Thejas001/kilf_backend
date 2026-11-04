@@ -18,6 +18,8 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
         bookingNumber: booking!.bookingNumber,
         status: booking!.status,
         quantity: booking!.quantity,
+        subtotalAmount: booking!.subtotalAmount,
+        gstAmount: booking!.gstAmount,
         totalAmount: booking!.totalAmount,
         currency: booking!.currency,
       },
@@ -25,7 +27,7 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
       // active PaymentProvider returned to let the client complete checkout
       // (e.g. Razorpay's { keyId, orderId, amount, currency }). The mock
       // provider settles synchronously, so this is normally absent.
-      ...(booking!.status === 'PENDING_PAYMENT' ? { payment: payment.raw ?? null } : {}),
+      ...(booking!.status === 'PENDING_PAYMENT' ? { payment: payment?.raw ?? null } : {}),
     },
     'Booking created',
     201

@@ -71,3 +71,10 @@ export const publicGetOne = asyncHandler(async (req: Request, res: Response) => 
   const ticket = await ticketService.getPublicTicket(req.params.id);
   return sendSuccess(res, ticket, 'Ticket fetched');
 });
+
+export const archive = asyncHandler(async (req: Request, res: Response) => {
+  const before = await ticketService.getTicket(req.params.id);
+  const ticket = await ticketService.archiveTicket(req.params.id);
+  await recordAuditLogFromRequest(req, 'ARCHIVED_TICKET', 'Ticket', ticket.id, before, ticket);
+  return sendSuccess(res, ticket, 'Ticket archived');
+});

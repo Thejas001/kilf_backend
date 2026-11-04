@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/config/prisma';
-import { createAdmin, createFestival, createTicket, authHeader } from '../utils/factories';
+import { createAdmin, createFestival, createTicket, authHeader, attendees } from '../utils/factories';
 
 const app = createApp();
 
@@ -17,10 +17,10 @@ describe('Revenue calculations', () => {
 
     await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 2, customer: customerPayload('r1@example.com') });
+      .send({ ticketId: ticket.id, quantity: 2, attendees: attendees(2), customer: customerPayload('r1@example.com') });
     await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 1, customer: customerPayload('r2@example.com') });
+      .send({ ticketId: ticket.id, quantity: 1, attendees: attendees(1), customer: customerPayload('r2@example.com') });
 
     const res = await request(app).get('/api/admin/revenue/summary').set(authHeader(token));
 
@@ -39,7 +39,7 @@ describe('Revenue calculations', () => {
 
     await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 1, customer: customerPayload('fail-revenue@example.com') });
+      .send({ ticketId: ticket.id, quantity: 1, attendees: attendees(1), customer: customerPayload('fail-revenue@example.com') });
 
     const res = await request(app).get('/api/admin/revenue/summary').set(authHeader(token));
     expect(res.body.data.grossRevenue).toBe(0);
@@ -53,7 +53,7 @@ describe('Revenue calculations', () => {
 
     const bookingRes = await request(app)
       .post('/api/bookings')
-      .send({ ticketId: ticket.id, quantity: 1, customer: customerPayload('r3@example.com') });
+      .send({ ticketId: ticket.id, quantity: 1, attendees: attendees(1), customer: customerPayload('r3@example.com') });
     const booking = await prisma.booking.findUnique({
       where: { bookingNumber: bookingRes.body.data.booking.bookingNumber },
     });
@@ -89,10 +89,10 @@ describe('Revenue calculations', () => {
 
     await request(app)
       .post('/api/bookings')
-      .send({ ticketId: general.id, quantity: 2, customer: customerPayload('g@example.com') });
+      .send({ ticketId: general.id, quantity: 2, attendees: attendees(2), customer: customerPayload('g@example.com') });
     await request(app)
       .post('/api/bookings')
-      .send({ ticketId: vip.id, quantity: 1, customer: customerPayload('v@example.com') });
+      .send({ ticketId: vip.id, quantity: 1, attendees: attendees(1), customer: customerPayload('v@example.com') });
 
     const res = await request(app).get('/api/admin/revenue/tickets').set(authHeader(token));
     expect(res.status).toBe(200);
