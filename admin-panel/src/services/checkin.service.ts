@@ -8,6 +8,11 @@ export interface VerifyResult {
   ticket:
     | (TicketInstance & {
         ticket: { id: string; name: string; ticketType: string };
+        attendee?: {
+          name: string;
+          validDate: string | null;
+          showSession: { name: string; venue: string | null; startsAt: string } | null;
+        } | null;
         booking: { bookingNumber: string; status: string; customer: { name: string; email: string } };
       })
     | null;

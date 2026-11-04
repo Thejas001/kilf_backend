@@ -14,6 +14,9 @@ function extractToken(req: Request): string | null {
 }
 
 export const authenticate = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
+  // Already authenticated by an earlier guard on the same request (see routes/admin/index.ts).
+  if (req.admin) return next();
+
   const token = extractToken(req);
   if (!token) {
     throw ApiError.unauthorized('Authentication token missing');
@@ -49,4 +52,15 @@ export function authorize(...roles: AdminRole[]) {
     }
     next();
   };
+}
+
+/**
+ * Keeps gate-staff (SCANNER) accounts out of everything except the routes that
+ * explicitly allow them. Mount after `authenticate`.
+ */
+export function denyScanner(req: Request, _res: Response, next: NextFunction) {
+  if (req.admin?.role === 'SCANNER') {
+    throw ApiError.forbidden('Scanner accounts can only verify and check in tickets');
+  }
+  next();
 }

@@ -13,13 +13,28 @@ import { checkInTicket, VerifyResult, verifyTicket } from '@/services/checkin.se
 import { getApiErrorMessage } from '@/services/api';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { getDashboardStats } from '@/services/revenue.service';
+import { QrScanner } from '@/components/common/QrScanner';
+import { useAuth } from '@/hooks/useAuth';
+import { ScannerCheckIn } from '@/pages/ScannerCheckIn';
 
 export default function CheckInPage() {
+  const isScanner = useAuth().admin?.role === 'SCANNER';
+  return isScanner ? <ScannerCheckIn /> : <AdminCheckInPage />;
+}
+
+function AdminCheckInPage() {
   const [ticketNumber, setTicketNumber] = useState('');
   const [result, setResult] = useState<VerifyResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const stats = useQuery({ queryKey: ['dashboard-stats'], queryFn: getDashboardStats, refetchInterval: 15000 });
+  // Gate-staff (SCANNER) accounts can't read dashboard stats.
+  const isScanner = useAuth().admin?.role === 'SCANNER';
+  const stats = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: getDashboardStats,
+    refetchInterval: 15000,
+    enabled: !isScanner,
+  });
   const refreshStats = () => queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
 
   const verifyMutation = useMutation({
@@ -54,6 +69,13 @@ export default function CheckInPage() {
     e.preventDefault();
     if (!ticketNumber.trim()) return;
     verifyMutation.mutate(ticketNumber.trim());
+  }
+
+  function handleCameraScan(text: string) {
+    const scanned = text.trim();
+    if (!scanned) return;
+    setTicketNumber(scanned);
+    verifyMutation.mutate(scanned);
   }
 
   function reset() {
@@ -91,6 +113,9 @@ export default function CheckInPage() {
                   <ScanLine className="h-4 w-4" /> Verify
                 </Button>
               </form>
+              <div className="mt-4">
+                <QrScanner onScan={handleCameraScan} paused={!!result || verifyMutation.isPending} />
+              </div>
             </CardContent>
           </Card>
 

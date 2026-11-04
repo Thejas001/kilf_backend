@@ -36,7 +36,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(values.email, values.password);
-      const from = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard';
+      const from = (location.state as { from?: Location })?.from?.pathname ?? '/';
       navigate(from, { replace: true });
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Invalid email or password'));

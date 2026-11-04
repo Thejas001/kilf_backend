@@ -21,7 +21,7 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:px-8">
       <button
-        className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary lg:hidden"
+        className={`rounded-md p-1.5 text-muted-foreground hover:bg-secondary lg:hidden ${admin?.role === 'SCANNER' ? 'hidden' : ''}`}
         onClick={onMenuClick}
         aria-label="Open menu"
       >
@@ -61,9 +61,11 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
           <DropdownMenuItem onClick={() => navigate('/admin/profile')}>
             <User className="h-4 w-4" /> Profile
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
-            <Settings className="h-4 w-4" /> Settings
-          </DropdownMenuItem>
+          {admin?.role !== 'SCANNER' && (
+            <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
+              <Settings className="h-4 w-4" /> Settings
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
             <LogOut className="h-4 w-4" /> Logout

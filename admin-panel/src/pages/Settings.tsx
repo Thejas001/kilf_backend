@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { API_URL } from '@/services/api';
+import { ScannerAccounts } from '@/components/common/ScannerAccounts';
 
 export default function SettingsPage() {
   const { admin } = useAuth();
@@ -52,6 +53,8 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {admin?.role === 'SUPER_ADMIN' && <ScannerAccounts />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { ProtectedRoute } from '@/components/common/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
 
 import LoginPage from '@/pages/Login';
 import DashboardPage from '@/pages/Dashboard';
@@ -21,6 +22,12 @@ import CheckInPage from '@/pages/CheckIn';
 import ProfilePage from '@/pages/Profile';
 import SettingsPage from '@/pages/Settings';
 import NotFoundPage from '@/pages/NotFound';
+
+/** Lands each role on its home screen: gate staff go straight to scanning. */
+function RoleHome() {
+  const { admin } = useAuth();
+  return <Navigate to={admin?.role === 'SCANNER' ? '/check-in' : '/dashboard'} replace />;
+}
 
 export default function App() {
   return (
@@ -56,7 +63,9 @@ export default function App() {
         </Route>
       </Route>
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<RoleHome />} />
+      </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

@@ -2,8 +2,11 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
+// Gate staff (SCANNER role) only get the check-in screen and their own profile.
+const SCANNER_PATHS = ['/check-in', '/admin/profile'];
+
 export function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { admin, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -16,6 +19,10 @@ export function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (admin?.role === 'SCANNER' && !SCANNER_PATHS.some((p) => location.pathname === p)) {
+    return <Navigate to="/check-in" replace />;
   }
 
   return <Outlet />;

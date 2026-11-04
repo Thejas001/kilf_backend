@@ -3,10 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { listEnquiries } from '@/services/enquiry.service';
-import { NAV_GROUPS } from './navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { NAV_GROUPS, SCANNER_NAV_PATHS } from './navigation';
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const isScanner = useAuth().admin?.role === 'SCANNER';
+  const groups = isScanner
+    ? NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => SCANNER_NAV_PATHS.includes(i.to)) })).filter(
+        (g) => g.items.length > 0
+      )
+    : NAV_GROUPS;
   const { data: pendingEnquiries } = useQuery({
+    enabled: !isScanner,
     queryKey: ['enquiries', 'pending-count'],
     queryFn: () => listEnquiries({ page: 1, limit: 1, status: 'PENDING' }),
   });
@@ -32,7 +40,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="scrollbar-thin flex-1 space-y-6 overflow-y-auto px-3 py-4">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.label}>
             <p className="mb-1.5 px-2.5 text-xs font-semibold text-sidebar-muted">{group.label}</p>
             <div className="space-y-0.5">

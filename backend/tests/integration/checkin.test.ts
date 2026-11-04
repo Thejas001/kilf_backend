@@ -71,3 +71,120 @@ describe('Ticket verification / check-in', () => {
     expect(res.body.data.valid).toBe(false);
   });
 });
+
+describe('Scanner (gate staff) accounts', () => {
+  async function bookOneTicket() {
+    const festival = await createFestival();
+    const ticket = await createTicket(festival.id, { totalQuantity: 5, availableQuantity: 5 });
+    const res = await request(app)
+      .post('/api/bookings')
+      .send({
+        ticketId: ticket.id,
+        quantity: 1,
+        attendees: attendees(1),
+        customer: { name: 'Gate Guest', email: `gate.${Date.now()}@example.com`, phone: '+919876543210' },
+      });
+    return prisma.ticketInstance.findFirstOrThrow({
+      where: { booking: { bookingNumber: res.body.data.booking.bookingNumber } },
+    });
+  }
+
+  it('lets a scanner verify and check in a ticket', async () => {
+    const { token } = await createAdmin({ role: 'SCANNER' });
+    const instance = await bookOneTicket();
+
+    const verify = await request(app)
+      .post('/api/admin/tickets/verify')
+      .set(authHeader(token))
+      .send({ ticketNumber: instance.ticketNumber });
+    expect(verify.status).toBe(200);
+    expect(verify.body.data.valid).toBe(true);
+
+    const checkIn = await request(app)
+      .post('/api/admin/tickets/check-in')
+      .set(authHeader(token))
+      .send({ ticketNumber: instance.ticketNumber });
+    expect(checkIn.status).toBe(200);
+  });
+
+  it('keeps a scanner out of every other admin route', async () => {
+    const { token } = await createAdmin({ role: 'SCANNER' });
+
+    for (const path of [
+      '/api/admin/tickets',
+      '/api/admin/bookings',
+      '/api/admin/dashboard/stats',
+      '/api/admin/revenue/summary',
+      '/api/admin/enquiries',
+      '/api/admin/early-bird',
+      '/api/admin/sponsors',
+      '/api/admin/festivals',
+      '/api/admin/show-sessions',
+      '/api/admin/audit-logs',
+      '/api/admin/scanners',
+    ]) {
+      const res = await request(app).get(path).set(authHeader(token));
+      expect({ path, status: res.status }).toEqual({ path, status: 403 });
+    }
+  });
+
+  it('lets a scanner read their own profile', async () => {
+    const { token } = await createAdmin({ role: 'SCANNER' });
+    const res = await request(app).get('/api/admin/auth/me').set(authHeader(token));
+    expect(res.status).toBe(200);
+    expect(res.body.data.role).toBe('SCANNER');
+  });
+
+  it('lets only a super admin create scanners, who can then log in', async () => {
+    const { token: adminToken } = await createAdmin({ role: 'ADMIN' });
+    const { token: superToken } = await createAdmin({ role: 'SUPER_ADMIN' });
+    const body = { name: 'Gate One', email: `gate1.${Date.now()}@kilf.dev`, password: 'GatePass@123' };
+
+    const denied = await request(app).post('/api/admin/scanners').set(authHeader(adminToken)).send(body);
+    expect(denied.status).toBe(403);
+
+    const created = await request(app).post('/api/admin/scanners').set(authHeader(superToken)).send(body);
+    expect(created.status).toBe(201);
+    expect(created.body.data.role).toBe('SCANNER');
+    expect(created.body.data.passwordHash).toBeUndefined();
+
+    const dup = await request(app).post('/api/admin/scanners').set(authHeader(superToken)).send(body);
+    expect(dup.status).toBe(409);
+
+    const login = await request(app)
+      .post('/api/admin/auth/login')
+      .send({ email: body.email, password: body.password });
+    expect(login.status).toBe(200);
+    expect(login.body.admin.role).toBe('SCANNER');
+
+    const list = await request(app).get('/api/admin/scanners').set(authHeader(superToken));
+    expect(list.body.data.some((s: { email: string }) => s.email === body.email)).toBe(true);
+  });
+
+  it('blocks a deactivated scanner', async () => {
+    const { token: superToken } = await createAdmin({ role: 'SUPER_ADMIN' });
+    const { admin, token } = await createAdmin({ role: 'SCANNER' });
+
+    const off = await request(app)
+      .patch(`/api/admin/scanners/${admin.id}`)
+      .set(authHeader(superToken))
+      .send({ isActive: false });
+    expect(off.status).toBe(200);
+
+    const res = await request(app)
+      .post('/api/admin/tickets/verify')
+      .set(authHeader(token))
+      .send({ ticketNumber: 'LF-2026-000000' });
+    expect(res.status).toBe(401);
+  });
+
+  it('cannot edit a non-scanner account through the scanner endpoint', async () => {
+    const { token: superToken } = await createAdmin({ role: 'SUPER_ADMIN' });
+    const { admin } = await createAdmin({ role: 'ADMIN' });
+    const res = await request(app)
+      .patch(`/api/admin/scanners/${admin.id}`)
+      .set(authHeader(superToken))
+      .send({ isActive: false });
+    expect(res.status).toBe(404);
+  });
+});

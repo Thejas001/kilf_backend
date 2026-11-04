@@ -14,6 +14,8 @@ datasource db {
 enum AdminRole {
   SUPER_ADMIN
   ADMIN
+  /// Gate staff: may only verify and check in tickets.
+  SCANNER
 }
 
 enum FestivalStatus {

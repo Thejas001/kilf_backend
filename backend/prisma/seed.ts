@@ -22,6 +22,20 @@ async function main() {
   });
   console.log(`Admin ready: ${admin.email} / ${adminPassword} (DEV ONLY - change in production)`);
 
+  // ---- Gate scanner (can only verify / check in tickets) ----
+  const scannerPassword = 'Scanner@12345';
+  const scanner = await prisma.admin.upsert({
+    where: { email: 'scanner@kilf.dev' },
+    update: {},
+    create: {
+      name: 'Gate Scanner',
+      email: 'scanner@kilf.dev',
+      passwordHash: await hashPassword(scannerPassword),
+      role: 'SCANNER',
+    },
+  });
+  console.log(`Scanner ready: ${scanner.email} / ${scannerPassword} (DEV ONLY - change in production)`);
+
   // ---- Festival ----
   const now = new Date();
   const festival = await prisma.festival.upsert({

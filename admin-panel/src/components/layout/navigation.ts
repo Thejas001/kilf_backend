@@ -22,6 +22,9 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+/** Nav items a SCANNER (gate staff) account may see. */
+export const SCANNER_NAV_PATHS = ['/check-in'];
+
 export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Overview',
