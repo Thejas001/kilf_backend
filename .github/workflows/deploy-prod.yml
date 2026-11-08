@@ -1,0 +1,61 @@
+name: Deploy Production
+
+# Runs when main changes (merge develop -> main via PR). The "production"
+# GitHub Environment should have "Required reviewers" on, so every prod
+# deploy waits for a manual approval click.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    env:
+      HOST: ${{ secrets.PROD_HOST }}
+      SSH_USER: ${{ secrets.PROD_USER }}
+      SSH_PORT: ${{ secrets.PROD_SSH_PORT || '22' }}
+      DIR: ${{ vars.PROD_DEPLOY_DIR }}
+    steps:
+      - name: Check config
+        run: test -n "$DIR" || { echo "Set the PROD_DEPLOY_DIR variable on the production environment"; exit 1; }
+
+      - name: Prepare SSH
+        env:
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "$SSH_PORT" "$HOST" >> ~/.ssh/known_hosts
+
+      # Prod keeps its existing layout: a git checkout on the VPS with its own
+      # compose file and secrets. We only move it to the tested commit and rebuild.
+      - name: Update and rebuild on server
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$HOST" \
+            "set -e; cd '$DIR' \
+             && git fetch origin main && git checkout -q ${{ github.sha }} \
+             && docker compose up -d --build --remove-orphans \
+             && docker image prune -f"
+
+      - name: Smoke test
+        env:
+          API_URL: ${{ vars.PROD_API_URL }}
+        run: |
+          for i in $(seq 1 12); do
+            if curl -fsS "$API_URL/health"; then exit 0; fi
+            sleep 5
+          done
+          echo "Health check failed"; exit 1
