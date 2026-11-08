@@ -1,8 +1,7 @@
 name: Deploy Production
 
-# Runs when main changes (merge develop -> main via PR). The "production"
-# GitHub Environment should have "Required reviewers" on, so every prod
-# deploy waits for a manual approval click.
+# The "production" GitHub Environment should have Required reviewers on,
+# so every prod deploy waits for a manual approval.
 on:
   push:
     branches: [main]
@@ -26,10 +25,14 @@ jobs:
       HOST: ${{ secrets.PROD_HOST }}
       SSH_USER: ${{ secrets.PROD_USER }}
       SSH_PORT: ${{ secrets.PROD_SSH_PORT || '22' }}
-      DIR: ${{ vars.PROD_DEPLOY_DIR }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check config
-        run: test -n "$DIR" || { echo "Set the PROD_DEPLOY_DIR variable on the production environment"; exit 1; }
+        run: |
+          for v in HOST SSH_USER; do
+            [ -n "${!v}" ] || { echo "Missing secret PROD_$v on the 'production' environment"; exit 1; }
+          done
 
       - name: Prepare SSH
         env:
@@ -40,15 +43,15 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -p "$SSH_PORT" "$HOST" >> ~/.ssh/known_hosts
 
-      # Prod keeps its existing layout: a git checkout on the VPS with its own
-      # compose file and secrets. We only move it to the tested commit and rebuild.
-      - name: Update and rebuild on server
+      - name: Deploy on server
         run: |
           ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$HOST" \
-            "set -e; cd '$DIR' \
-             && git fetch origin main && git checkout -q ${{ github.sha }} \
-             && docker compose up -d --build --remove-orphans \
-             && docker image prune -f"
+            DIR='${{ vars.PROD_DEPLOY_DIR }}' \
+            SHA='${{ github.sha }}' \
+            PM2_NAME='${{ vars.PROD_PM2_NAME || 'kilf-backend' }}' \
+            PORT='${{ vars.PROD_PORT }}' \
+            ADMIN_API_URL='${{ vars.PROD_API_URL }}' \
+            'bash -s' < deploy/remote-deploy.sh
 
       - name: Smoke test
         env:
