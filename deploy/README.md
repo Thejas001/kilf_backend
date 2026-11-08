@@ -14,7 +14,7 @@ Hotfix: `hotfix/x` from `main` → PR into `main`, then merge `main` back into `
 Both environments live on the same Hostinger VPS, run with **PM2 + native PostgreSQL + nginx** (no Docker).
 GitHub Actions runs CI, then SSHes in and pipes `deploy/remote-deploy.sh`, which in the server checkout:
 `git checkout <sha>` → backend `npm ci`, `prisma generate`, `build`, `prisma migrate deploy`, `pm2 reload`
-→ admin-panel `npm run build` (nginx serves `admin-panel/dist`).
+→ admin-panel is skipped by default (it is hosted on Vercel; set `*_BUILD_ADMIN=true` to build it on the server).
 
 |                 | dev                         | prod                        |
 |-----------------|-----------------------------|-----------------------------|
@@ -50,12 +50,12 @@ nano /opt/kilf-dev/backend/.env
 #   PORT=4100
 #   DATABASE_URL=postgresql://kilf_dev:CHANGE_ME@localhost:5432/kilf_dev?schema=public
 #   JWT_SECRET / JWT_REFRESH_SECRET = new values (openssl rand -hex 32)
-#   FRONTEND_URL=https://dev-admin.kilf.in   API_URL=https://dev-api.kilf.in
+#   ADMIN_URL=<Vercel dev admin URL>   API_URL=https://dev-api.kilf.in
 #   Razorpay TEST keys only, or PAYMENT_PROVIDER=mock
 ```
 
 5. nginx — `/etc/nginx/sites-available/kilf-dev`, then `ln -s` into `sites-enabled`,
-   `nginx -t && systemctl reload nginx`, and `certbot --nginx -d dev-api.kilf.in -d dev-admin.kilf.in`:
+   `nginx -t && systemctl reload nginx`, and `certbot --nginx -d dev-api.kilf.in`:
 ```nginx
 server {
   server_name dev-api.kilf.in;
@@ -68,13 +68,8 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 }
-server {
-  server_name dev-admin.kilf.in;
-  root /opt/kilf-dev/admin-panel/dist;
-  location / { try_files $uri /index.html; }
-}
 ```
-DNS: A records `dev-api` and `dev-admin` → VPS IP (Hostinger hPanel → DNS).
+DNS: A record `dev-api` → VPS IP (Hostinger hPanel → DNS).
 
 ## One-time setup: GitHub Actions SSH key
 
@@ -95,3 +90,9 @@ cat /root/gh_actions        # paste into the GitHub secrets below, then: rm /roo
 - Secrets: `PROD_HOST`, `PROD_USER` (`root`), `PROD_SSH_KEY`, `PROD_SSH_PORT` (optional)
 - Variables: `PROD_DEPLOY_DIR` (prod checkout, must be a git clone), `PROD_API_URL` = `https://api.kilf.in`
   (optional: `PROD_PM2_NAME`, default `kilf-backend`; `PROD_PORT`)
+
+## Admin panel on Vercel (dev)
+
+Vercel project → Settings → Environment Variables:
+`VITE_API_URL` = `https://dev-api.kilf.in`, scoped to the environment/branch that builds `develop`.
+Put the Vercel URL in the dev server's `backend/.env` as `ADMIN_URL` so CORS allows it, then `pm2 reload kilf-backend-dev --update-env`.

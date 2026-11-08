@@ -50,6 +50,7 @@ jobs:
             SHA='${{ github.sha }}' \
             PM2_NAME='${{ vars.PROD_PM2_NAME || 'kilf-backend' }}' \
             PORT='${{ vars.PROD_PORT }}' \
+            BUILD_ADMIN='${{ vars.PROD_BUILD_ADMIN || 'false' }}' \
             ADMIN_API_URL='${{ vars.PROD_API_URL }}' \
             'bash -s' < deploy/remote-deploy.sh
 

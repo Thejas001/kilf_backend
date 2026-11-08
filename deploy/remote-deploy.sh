@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs ON THE VPS (piped over SSH by the deploy workflows).
-# Expects: DIR, SHA, PM2_NAME, ADMIN_API_URL; optional PORT (else backend/.env decides)
+# Expects: DIR, SHA, PM2_NAME; optional PORT (else backend/.env decides),
+# BUILD_ADMIN=true + ADMIN_API_URL to also build admin-panel/dist on the server.
 # The server checkout must already exist at $DIR with backend/.env in place.
 set -euo pipefail
 [ -n "${DIR:-}" ] && [ -d "$DIR/.git" ] || { echo "DIR ($DIR) is not a git checkout on this server"; exit 1; }
@@ -25,9 +26,13 @@ else
 fi
 pm2 save
 
-echo "==> Admin panel"
-cd "$DIR/admin-panel"
-npm ci --no-audit --no-fund
-VITE_API_URL="$ADMIN_API_URL" npm run build   # nginx serves $DIR/admin-panel/dist
+if [ "${BUILD_ADMIN:-false}" = "true" ]; then
+  echo "==> Admin panel"
+  cd "$DIR/admin-panel"
+  npm ci --no-audit --no-fund
+  VITE_API_URL="$ADMIN_API_URL" npm run build   # nginx serves $DIR/admin-panel/dist
+else
+  echo "==> Admin panel skipped (hosted elsewhere, e.g. Vercel)"
+fi
 
 echo "==> Done ($SHA)"
