@@ -1,5 +1,7 @@
 name: Deploy Dev
 
+# Every secret/variable below is read from the "dev" GitHub Environment.
+# The production workflow uses the SAME names from the "production" environment.
 on:
   push:
     branches: [develop]
@@ -20,42 +22,74 @@ jobs:
     permissions:
       contents: read
     env:
-      HOST: ${{ secrets.DEV_HOST }}
-      SSH_USER: ${{ secrets.DEV_USER }}
-      SSH_PORT: ${{ secrets.DEV_SSH_PORT || '22' }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/kilf-dev' }}
+      PM2_NAME: ${{ vars.PM2_NAME || 'kilf-backend-dev' }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check config
-        run: |
-          for v in HOST SSH_USER; do
-            [ -n "${!v}" ] || { echo "Missing secret DEV_$v on the 'dev' environment"; exit 1; }
-          done
-
       - name: Prepare SSH
         env:
-          SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
+          for v in SSH_HOST SSH_USER SSH_KEY; do
+            [ -n "${!v}" ] || { echo "Missing secret $v on the 'dev' environment"; exit 1; }
+          done
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "$SSH_PORT" "$HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Build backend .env from GitHub secrets
+        env:
+          # secrets
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          PAYMENT_SECRET: ${{ secrets.PAYMENT_SECRET }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+          RAZORPAY_WEBHOOK_SECRET: ${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
+          # variables (not secret)
+          PORT: ${{ vars.PORT || '4100' }}
+          API_URL: ${{ vars.API_URL }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+          ADMIN_URL: ${{ vars.ADMIN_URL }}
+          PAYMENT_PROVIDER: ${{ vars.PAYMENT_PROVIDER || 'mock' }}
+          JWT_EXPIRES_IN: ${{ vars.JWT_EXPIRES_IN }}
+          JWT_REFRESH_EXPIRES_IN: ${{ vars.JWT_REFRESH_EXPIRES_IN }}
+          BOOKING_HOLD_MINUTES: ${{ vars.BOOKING_HOLD_MINUTES }}
+          RATE_LIMIT_WINDOW_MS: ${{ vars.RATE_LIMIT_WINDOW_MS }}
+          RATE_LIMIT_MAX: ${{ vars.RATE_LIMIT_MAX }}
+          UPLOAD_DIR: ${{ vars.UPLOAD_DIR }}
+          MAX_UPLOAD_MB: ${{ vars.MAX_UPLOAD_MB }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+        run: bash deploy/render-env.sh > backend.env
+
+      - name: Upload .env to server
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "set -e; f='$DEPLOY_DIR/backend/.env'; [ -f \"\$f\" ] && cp -p \"\$f\" \"\$f.bak\"; umask 077; cat > \"\$f\"" \
+            < backend.env
+          rm -f backend.env
 
       - name: Deploy on server
         run: |
-          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$HOST" \
-            DIR='${{ vars.DEV_DEPLOY_DIR || '/opt/kilf-dev' }}' \
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            DIR="'$DEPLOY_DIR'" \
             SHA='${{ github.sha }}' \
-            PM2_NAME='${{ vars.DEV_PM2_NAME || 'kilf-backend-dev' }}' \
-            PORT='${{ vars.DEV_PORT || '4100' }}' \
-            BUILD_ADMIN='${{ vars.DEV_BUILD_ADMIN || 'false' }}' \
-            ADMIN_API_URL='${{ vars.DEV_API_URL }}' \
+            PM2_NAME="'$PM2_NAME'" \
+            BUILD_ADMIN='${{ vars.BUILD_ADMIN || 'false' }}' \
+            ADMIN_API_URL='${{ vars.API_URL }}' \
             'bash -s' < deploy/remote-deploy.sh
 
       - name: Smoke test
         env:
-          API_URL: ${{ vars.DEV_API_URL }}
+          API_URL: ${{ vars.API_URL }}
         run: |
+          [ -n "$API_URL" ] || { echo "Set the API_URL variable to enable the smoke test"; exit 0; }
           for i in $(seq 1 12); do
             if curl -fsS "$API_URL/health"; then exit 0; fi
             sleep 5

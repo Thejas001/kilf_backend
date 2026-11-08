@@ -22,9 +22,8 @@ GitHub Actions runs CI, then SSHes in and pipes `deploy/remote-deploy.sh`, which
 | PM2 process     | `kilf-backend-dev`          | `kilf-backend`              |
 | API port        | 4100                        | from prod `backend/.env`    |
 | Database        | `kilf_dev`                  | existing prod DB            |
-| Secrets         | `/opt/kilf-dev/backend/.env`| prod `backend/.env`         |
 
-Secrets live only in each server's `backend/.env` — never in GitHub.
+All config and secrets live in GitHub Environments (`dev`, `production`). Each deploy regenerates the server's `backend/.env` from them (`deploy/render-env.sh`), keeping the previous one as `.env.bak`. Never edit `.env` on the server — it will be overwritten.
 
 ## One-time setup: dev
 
@@ -79,20 +78,32 @@ cat /root/gh_actions.pub >> /root/.ssh/authorized_keys
 cat /root/gh_actions        # paste into the GitHub secrets below, then: rm /root/gh_actions*
 ```
 
-## GitHub Environments (repo → Settings → Environments)
+## GitHub Environments (getanixtechnologies/kilf_backend → Settings → Environments)
 
-**dev** (deployment branch: `develop`)
-- Secrets: `DEV_HOST` (VPS IP), `DEV_USER` (`root`), `DEV_SSH_KEY`, `DEV_SSH_PORT` (optional)
-- Variables: `DEV_API_URL` = `https://dev-api.kilf.in`
-  (optional: `DEV_DEPLOY_DIR`, `DEV_PM2_NAME`, `DEV_PORT`)
+Create `dev` (deployment branch `develop`) and `production` (branch `main`, **Required reviewers** on).
+Both use the **same names**; each environment holds its own values.
 
-**production** (deployment branch: `main`, **Required reviewers** on)
-- Secrets: `PROD_HOST`, `PROD_USER` (`root`), `PROD_SSH_KEY`, `PROD_SSH_PORT` (optional)
-- Variables: `PROD_DEPLOY_DIR` (prod checkout, must be a git clone), `PROD_API_URL` = `https://api.kilf.in`
-  (optional: `PROD_PM2_NAME`, default `kilf-backend`; `PROD_PORT`)
+**Secrets**
+| Name | Required | Notes |
+|---|---|---|
+| `SSH_HOST` | yes | VPS IP |
+| `SSH_USER` | yes | `root` |
+| `SSH_KEY` | yes | private key whose public half is in `/root/.ssh/authorized_keys` |
+| `SSH_PORT` | no | default 22 |
+| `DATABASE_URL` | yes | dev: `kilf_dev` DB, prod: prod DB |
+| `JWT_SECRET` | yes | different per environment |
+| `JWT_REFRESH_SECRET` | yes | different per environment |
+| `PAYMENT_SECRET` | no | |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | if `PAYMENT_PROVIDER=razorpay` | dev: **test** keys only |
 
-## Admin panel on Vercel (dev)
-
-Vercel project → Settings → Environment Variables:
-`VITE_API_URL` = `https://dev-api.kilf.in`, scoped to the environment/branch that builds `develop`.
-Put the Vercel URL in the dev server's `backend/.env` as `ADMIN_URL` so CORS allows it, then `pm2 reload kilf-backend-dev --update-env`.
+**Variables**
+| Name | dev | production |
+|---|---|---|
+| `API_URL` | `https://dev-api.kilf.in` | `https://api.kilf.in` |
+| `ADMIN_URL` | Vercel dev admin URL | prod admin URL |
+| `FRONTEND_URL` | dev frontend URL | prod frontend URL |
+| `PORT` | default `4100` | prod's current port (default 4000) |
+| `PAYMENT_PROVIDER` | default `mock` | `razorpay` |
+| `DEPLOY_DIR` | default `/opt/kilf-dev` | default `/root/kilf_backend` |
+| `PM2_NAME` | default `kilf-backend-dev` | default `kilf-backend` |
+| optional | `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`, `BOOKING_HOLD_MINUTES`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `UPLOAD_DIR`, `MAX_UPLOAD_MB`, `LOG_LEVEL`, `BUILD_ADMIN` | same |
