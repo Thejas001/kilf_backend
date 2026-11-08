@@ -1,20 +1,10 @@
 import axios, { AxiosError } from 'axios';
 import { tokenStorage } from './tokenStorage';
 
-export const PROD_API_URL = 'https://api.kilf.in';
-export const DEV_API_URL = 'https://dev.api.kilf.in';
-
-// VITE_API_URL (set at build time, e.g. in Vercel) always wins; an empty value
-// (embedded build) stays same-origin. Otherwise pick by where the panel is served:
-// admin.dev.kilf.in -> dev API, anything else -> production API.
-function resolveApiUrl(): string {
-  const fromEnv = import.meta.env.VITE_API_URL;
-  if (fromEnv !== undefined) return fromEnv;
-  const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  return host === 'dev.kilf.in' || host.endsWith('.dev.kilf.in') ? DEV_API_URL : PROD_API_URL;
-}
-
-export const API_URL: string = resolveApiUrl();
+// Set at build time by vite.config.ts: branch `develop` -> https://dev.api.kilf.in,
+// `main` -> https://api.kilf.in, otherwise VITE_API_URL from .env. Falls back to
+// production when unset; an empty value (embedded build) stays same-origin.
+export const API_URL: string = import.meta.env.VITE_API_URL ?? 'https://api.kilf.in';
 
 export const api = axios.create({
   baseURL: API_URL,
