@@ -3,7 +3,7 @@
 | Branch      | Environment | Deploys                                            | API URL            |
 |-------------|-------------|----------------------------------------------------|--------------------|
 | `feature/*` | –           | CI only (on PR)                                    | –                  |
-| `develop`   | dev         | auto on push (`deploy-dev.yml`)                    | dev-api.kilf.in    |
+| `develop`   | dev         | auto on push (`deploy-dev.yml`)                    | dev.api.kilf.in    |
 | `main`      | production  | on push, after manual approval (`deploy-prod.yml`) | api.kilf.in        |
 
 Flow: `feature/x` → PR into `develop` → test on dev → PR `develop` → `main` → approve prod deploy.
@@ -49,15 +49,15 @@ nano /opt/kilf-dev/backend/.env
 #   PORT=4100
 #   DATABASE_URL=postgresql://kilf_dev:CHANGE_ME@localhost:5432/kilf_dev?schema=public
 #   JWT_SECRET / JWT_REFRESH_SECRET = new values (openssl rand -hex 32)
-#   ADMIN_URL=<Vercel dev admin URL>   API_URL=https://dev-api.kilf.in
+#   ADMIN_URL=<Vercel dev admin URL>   API_URL=https://dev.api.kilf.in
 #   Razorpay TEST keys only, or PAYMENT_PROVIDER=mock
 ```
 
 5. nginx — `/etc/nginx/sites-available/kilf-dev`, then `ln -s` into `sites-enabled`,
-   `nginx -t && systemctl reload nginx`, and `certbot --nginx -d dev-api.kilf.in`:
+   `nginx -t && systemctl reload nginx`, and `certbot --nginx -d dev.api.kilf.in`:
 ```nginx
 server {
-  server_name dev-api.kilf.in;
+  server_name dev.api.kilf.in;
   client_max_body_size 20m;
   location / {
     proxy_pass http://127.0.0.1:4100;
@@ -68,7 +68,7 @@ server {
   }
 }
 ```
-DNS: A record `dev-api` → VPS IP (Hostinger hPanel → DNS).
+DNS: A record `dev.api` → VPS IP (Hostinger hPanel → DNS).
 
 ## One-time setup: GitHub Actions SSH key
 
@@ -99,7 +99,7 @@ Both use the **same names**; each environment holds its own values.
 **Variables**
 | Name | dev | production |
 |---|---|---|
-| `API_URL` | `https://dev-api.kilf.in` | `https://api.kilf.in` |
+| `API_URL` | `https://dev.api.kilf.in` | `https://api.kilf.in` |
 | `ADMIN_URL` | Vercel dev admin URL | prod admin URL |
 | `FRONTEND_URL` | dev frontend URL | prod frontend URL |
 | `PORT` | default `4100` | prod's current port (default 4000) |
